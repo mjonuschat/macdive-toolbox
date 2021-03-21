@@ -1,0 +1,23 @@
+#[derive(Debug, Queryable)]
+pub struct DiveSite {
+    pub id: i32,
+    pub ent: Option<i32>,
+    pub opt: Option<i32>,
+    pub altitude: Option<f32>,
+    pub latitude: Option<f32>,
+    pub longitude: Option<f32>,
+    pub modified_at: Option<chrono::NaiveDateTime>,
+    pub body_of_water: Option<String>,
+    pub country: Option<String>,
+    pub difficulty: Option<String>,
+    pub divelog_uuid: Option<String>,
+    pub flag: Option<String>,
+    pub image: Option<String>,
+    pub last_divelog_image_hash: Option<String>,
+    pub location: Option<String>,
+    pub name: Option<String>,
+    pub notes: Option<String>,
+    pub uuid: Option<String>,
+    pub water_type: Option<String>,
+    pub zoom: Option<String>,
+}

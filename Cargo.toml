@@ -1,0 +1,18 @@
+[package]
+name = "macdive-exporter"
+version = "0.1.0"
+authors = ["Morton Jonuschat <mjonuschat@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.39"
+celes = "1.0.6"
+chrono = "0.4.19"
+clap = "3.0.0-beta.2"
+diesel = { version = "1.4.6", features = ["sqlite", "chrono", "uuidv07"] }
+dirs = "3.0.1"
+once_cell = "1.7.2"
+thiserror = "1.0.24"
+uuid = "0.8.2"
