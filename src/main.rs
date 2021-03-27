@@ -37,6 +37,33 @@ fn main() -> anyhow::Result<()> {
         })
         .collect::<Result<Vec<types::DiveSite>, types::ConversionError>>()?;
 
-    dbg!(sites);
+    use prettytable::{Cell, Row, Table};
+    let mut table = Table::new();
+    for site in sites {
+        table.add_row(Row::new(vec![
+            Cell::new(&site.name),
+            Cell::new(&site.locality.unwrap_or_else(|| "".to_string())),
+            Cell::new(
+                &site
+                    .county
+                    .map(|v| match v.strip_suffix(" County") {
+                        Some(s) => s.to_string(),
+                        None => v.to_string(),
+                    })
+                    .unwrap_or_else(|| "".to_string()),
+            ),
+            Cell::new(&site.state.unwrap_or_else(|| "".to_string())),
+            Cell::new(&site.country),
+        ]));
+    }
+    table.set_titles(Row::new(vec![
+        Cell::new("Site"),
+        Cell::new("Locality"),
+        Cell::new("County"),
+        Cell::new("State"),
+        Cell::new("Country"),
+    ]));
+
+    table.printstd();
     Ok(())
 }
