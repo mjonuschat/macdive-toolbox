@@ -4,6 +4,7 @@ extern crate diesel;
 use clap::Clap;
 
 mod arguments;
+mod errors;
 mod geocode;
 mod lightroom;
 mod macdive;

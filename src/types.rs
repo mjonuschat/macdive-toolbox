@@ -1,27 +1,11 @@
-use std::convert::TryInto;
-use std::str::FromStr;
-use thiserror::Error;
-use uuid::Uuid;
+use crate::errors::{ConversionError, GeocodingError};
 
-#[derive(Error, Debug)]
-pub enum ConversionError {
-    #[error("The MacDive dive site is missing the unique identifier")]
-    MissingUuid,
-    #[error("The MacDive dive site is using an invalid UUID: `{0}`")]
-    InvalidUuid(#[from] uuid::Error),
-    #[error("The MacDive dive site is missing country information")]
-    MissingCountry,
-    #[error("The MacDive dive site is using an unknown country name")]
-    UnknownCountry(String),
-    #[error("The MacDive dive site is missing latitude information")]
-    MissingLatitude,
-    #[error("The MacDive dive site is missing longitude information")]
-    MissingLongitude,
-    #[error("The MacDive dive site is missing a name")]
-    MissingName,
-    #[error("Error reverse geocoding the dive site")]
-    GeocodingError(#[from] crate::geocode::GeocodingError),
-}
+use std::convert::{TryFrom, TryInto};
+use std::str::FromStr;
+
+use google_maps::LatLng;
+use rust_decimal::{prelude::FromPrimitive, Decimal};
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub enum WaterType {
@@ -75,6 +59,18 @@ pub struct DiveSite {
     pub water_type: WaterType,
     /// MacDive Primary ID
     pub site_id: i32,
+}
+
+impl TryFrom<DiveSite> for LatLng {
+    type Error = GeocodingError;
+
+    fn try_from(site: DiveSite) -> Result<Self, Self::Error> {
+        LatLng::try_from(
+            Decimal::from_f32(site.latitude).ok_or(GeocodingError::InvalidLatitude)?,
+            Decimal::from_f32(site.longitude).ok_or(GeocodingError::InvalidLongitude)?,
+        )
+        .map_err(|_e| GeocodingError::InvalidGps)
+    }
 }
 
 impl TryInto<DiveSite> for crate::macdive::models::DiveSite {

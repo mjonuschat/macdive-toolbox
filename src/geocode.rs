@@ -1,28 +1,16 @@
+use crate::errors::GeocodingError;
 use crate::types::DiveSite;
-use google_maps::{ClientSettings, LatLng, PlaceType};
-use rust_decimal::{prelude::FromPrimitive, Decimal};
-use thiserror::Error;
 
-#[derive(Error, Debug)]
-pub enum GeocodingError {
-    #[error("Error talking to Google Maps API")]
-    GoogleMaps,
-    #[error("Missing or invalid latitude")]
-    InvalidLatitude,
-    #[error("Missing or invalid longitude")]
-    InvalidLongitude,
-}
+use std::convert::TryInto;
+
+use google_maps::{ClientSettings, LatLng, PlaceType};
 
 pub fn geocode_site(site: DiveSite, key: &str) -> Result<DiveSite, GeocodingError> {
     let mut client = ClientSettings::new(key);
-    let latlng = LatLng::try_from(
-        Decimal::from_f32(site.latitude).ok_or(GeocodingError::InvalidLatitude)?,
-        Decimal::from_f32(site.longitude).ok_or(GeocodingError::InvalidLongitude)?,
-    )
-    .map_err(|_e| GeocodingError::GoogleMaps)?;
+    let latlng: LatLng = site.clone().try_into()?;
 
     let location = client
-        .reverse_geocoding(latlng.clone())
+        .reverse_geocoding(latlng)
         // .with_result_type(PlaceType::PlusCode)
         .with_result_types(&[PlaceType::PlusCode, PlaceType::Country])
         .execute()
