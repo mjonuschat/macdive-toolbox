@@ -31,3 +31,15 @@ pub enum GeocodingError {
     #[error("Invalid GPS coordinates for dive site")]
     InvalidGps,
 }
+
+#[derive(Error, Debug)]
+pub enum LightroomTemplateError {
+    #[error("Invalid UUID in Lightroom Template")]
+    InvalidUuid(#[from] uuid::Error),
+    #[error("Invalid reading/writing Lightroom Template")]
+    IoError(#[from] std::io::Error),
+    #[error("Error rendering the Lightroom Template")]
+    Rendering(#[from] askama::Error),
+    #[error("Error parsing existing Lightroom Template")]
+    Parsing,
+}

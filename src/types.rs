@@ -1,10 +1,12 @@
 use crate::errors::{ConversionError, GeocodingError};
 
+use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 
 use google_maps::LatLng;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
+use rust_decimal_macros::dec;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -13,6 +15,48 @@ pub enum WaterType {
     Salt,
     EN13319,
     Custom(f32),
+}
+
+pub trait DecimalToDms {
+    fn to_dms(&self) -> Result<String, GeocodingError>;
+}
+
+impl DecimalToDms for LatLng {
+    fn to_dms(&self) -> Result<String, GeocodingError> {
+        let lat_absolute = self.lat.abs();
+        let lat_degrees = lat_absolute.trunc();
+        let lat_minutes = lat_absolute.fract() * Decimal::new(60, 0);
+        let lat_seconds = lat_minutes.fract() * Decimal::new(60, 0);
+
+        let lat_direction = match self.lat.cmp(&dec!(0.0)) {
+            Ordering::Less => " S".to_string(),
+            Ordering::Greater => " N".to_string(),
+            Ordering::Equal => "".to_string(),
+        };
+
+        let lng_absolute = self.lng.abs();
+        let lng_degrees = lng_absolute.trunc();
+        let lng_minutes = lng_absolute.fract() * Decimal::new(60, 0);
+        let lng_seconds = lng_minutes.fract() * Decimal::new(60, 0);
+
+        let lng_direction = match self.lng.cmp(&dec!(0.0)) {
+            Ordering::Less => " W".to_string(),
+            Ordering::Greater => " E".to_string(),
+            Ordering::Equal => "".to_string(),
+        };
+
+        Ok(format!(
+            r#"{}°{}'{}"{} {}°{}'{}"{}"#,
+            lat_degrees,
+            lat_minutes.trunc(),
+            lat_seconds.normalize(),
+            lat_direction,
+            lng_degrees,
+            lng_minutes.trunc(),
+            lng_seconds.normalize(),
+            lng_direction
+        ))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -86,7 +130,9 @@ impl TryInto<DiveSite> for crate::macdive::models::DiveSite {
             uuid: self
                 .uuid
                 .ok_or(ConversionError::MissingUuid)
-                .and_then(|v| Uuid::parse_str(&v).map_err(ConversionError::InvalidUuid))?,
+                .and_then(|v| {
+                    Uuid::parse_str(&v.to_lowercase()).map_err(ConversionError::InvalidUuid)
+                })?,
             country: country.long_name,
             iso_country_code: country.alpha2,
             state: None,
@@ -100,5 +146,74 @@ impl TryInto<DiveSite> for crate::macdive::models::DiveSite {
             water_type: WaterType::Salt,
             site_id: self.id,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dms_null_island() {
+        // Null Island, Intersection of Prime Meridian and Equator
+        let latlng = LatLng {
+            lat: Decimal::new(0, 0),
+            lng: Decimal::new(0, 0),
+        };
+
+        assert_eq!("0°0'0\" 0°0'0\"", latlng.to_dms().unwrap());
+    }
+
+    #[test]
+    fn test_dms_nw() {
+        // Golden Gate Park, San Francisco, CA, USA
+        let latlng = LatLng {
+            lat: Decimal::new(37769722, 6),
+            lng: Decimal::new(-122476944, 6),
+        };
+
+        assert_eq!(
+            "37°46'10.9992\" N 122°28'36.9984\" W",
+            latlng.to_dms().unwrap()
+        );
+    }
+
+    #[test]
+    fn test_dms_ne() {
+        // The Moscow Kremlin, Moscow, Russia
+        let latlng = LatLng {
+            lat: Decimal::new(55752460, 6),
+            lng: Decimal::new(37617779, 6),
+        };
+
+        assert_eq!("55°45'8.856\" N 37°37'4.0044\" E", latlng.to_dms().unwrap());
+    }
+
+    #[test]
+    fn test_dms_sw() {
+        // Maracanã Stadium, Rio de Janeiro, Brazil
+        let latlng = LatLng {
+            lat: Decimal::new(-22912376, 6),
+            lng: Decimal::new(-43230320, 6),
+        };
+
+        assert_eq!(
+            "22°54'44.5536\" S 43°13'49.152\" W",
+            latlng.to_dms().unwrap()
+        );
+    }
+
+    #[test]
+    fn test_dms_se() {
+        // Sydney Opera House, Sydney, Australia
+        let latlng = LatLng {
+            lat: Decimal::new(-33856159, 6),
+            lng: Decimal::new(151215256, 6),
+        };
+
+        assert_eq!(
+            "33°51'22.1724\" S 151°12'54.9216\" E",
+            latlng.to_dms().unwrap()
+        );
     }
 }
