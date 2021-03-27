@@ -3,7 +3,7 @@ mod schema;
 mod types;
 
 use diesel::prelude::*;
-use std::path::PathBuf;
+use std::path::Path;
 use thiserror::Error;
 
 use models::DiveSite;
@@ -24,7 +24,7 @@ pub enum MacDiveError {
     DatabaseError(#[from] DatabaseError),
 }
 
-pub(crate) fn establish_connection(path: &PathBuf) -> Result<SqliteConnection, DatabaseError> {
+pub(crate) fn establish_connection(path: &Path) -> Result<SqliteConnection, DatabaseError> {
     let database_url = path.to_str().ok_or(DatabaseError::InvalidPath)?;
     SqliteConnection::establish(database_url).map_err(DatabaseError::Connection)
 }
