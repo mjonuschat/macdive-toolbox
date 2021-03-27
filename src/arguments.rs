@@ -18,6 +18,9 @@ pub struct Options {
     /// Path to the Lightroom Settings directory
     #[clap(short, long, parse(from_os_str), value_hint=ValueHint::DirPath)]
     lightroom: Option<PathBuf>,
+    /// Google Maps API key for reverse geocoding
+    #[clap(short, long, value_hint=ValueHint::Other)]
+    pub api_key: Option<String>,
 }
 
 #[derive(Error, Debug)]

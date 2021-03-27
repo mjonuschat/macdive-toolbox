@@ -1,4 +1,4 @@
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryInto;
 use std::str::FromStr;
 use thiserror::Error;
 use uuid::Uuid;
@@ -19,6 +19,8 @@ pub enum ConversionError {
     MissingLongitude,
     #[error("The MacDive dive site is missing a name")]
     MissingName,
+    #[error("Error reverse geocoding the dive site")]
+    GeocodingError(#[from] crate::geocode::GeocodingError),
 }
 
 #[derive(Debug, Clone)]
@@ -47,15 +49,20 @@ pub struct DiveSite {
     /// Since the abbreviation for a State or Province may be unknown consider using the
     /// full spelling of the name.
     pub state: Option<String>,
+    /// The name of the sub-subregion of a country, could be a county where the image was created
+    ///
+    /// Since the abbreviation for a State or Province may be unknown consider using the
+    /// full spelling of the name.
+    pub county: Option<String>,
     /// The name of the city of the location where the image was created
     ///
     /// If there is no city, use the Sublocation field alone to specify where the
     /// image was created.
-    pub city: Option<String>,
+    pub locality: Option<String>,
     /// The name of the sublocation of the location where the image was created.
     ///
     /// This sublocation name should be filled with the common name of the dive site.
-    pub location: String,
+    pub name: String,
     /// Latitude of a WGS84 based position of this Location
     pub latitude: f32,
     /// Longitude of a WGS84 based position of this Location
@@ -87,10 +94,11 @@ impl TryInto<DiveSite> for crate::macdive::models::DiveSite {
             country: country.long_name,
             iso_country_code: country.alpha2,
             state: None,
-            city: None,
-            location: self.name.ok_or(ConversionError::MissingName)?,
+            county: None,
+            locality: None,
+            name: self.name.ok_or(ConversionError::MissingName)?,
             latitude: self.latitude.ok_or(ConversionError::MissingLatitude)?,
-            longitude: self.latitude.ok_or(ConversionError::MissingLongitude)?,
+            longitude: self.longitude.ok_or(ConversionError::MissingLongitude)?,
             altitude: 0.0,
             body_of_water: None,
             water_type: WaterType::Salt,
