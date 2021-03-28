@@ -123,6 +123,7 @@ impl TryInto<DiveSite> for crate::macdive::models::DiveSite {
     fn try_into(self) -> Result<DiveSite, Self::Error> {
         let country = self
             .country
+            .clone()
             .ok_or(ConversionError::MissingCountry)
             .and_then(|v| celes::Country::from_str(&v).map_err(ConversionError::UnknownCountry))?;
 
@@ -133,7 +134,7 @@ impl TryInto<DiveSite> for crate::macdive::models::DiveSite {
                 .and_then(|v| {
                     Uuid::parse_str(&v.to_lowercase()).map_err(ConversionError::InvalidUuid)
                 })?,
-            country: country.long_name,
+            country: self.country.ok_or(ConversionError::MissingCountry)?,
             iso_country_code: country.alpha2,
             state: None,
             county: None,
