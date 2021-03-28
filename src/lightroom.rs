@@ -65,10 +65,7 @@ impl TryFrom<DiveSite> for MetadataPreset {
 
     fn try_from(site: DiveSite) -> Result<Self, Self::Error> {
         let latlng: LatLng = site.clone().try_into()?;
-        let county = match site.county {
-            Some(c) => c,
-            None => site.country.to_owned(),
-        };
+        let county = site.county.unwrap_or_else(|| String::from("Unknown"));
 
         Ok(Self {
             id: site.uuid,
