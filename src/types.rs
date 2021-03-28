@@ -9,14 +9,6 @@ use rust_decimal::{prelude::FromPrimitive, Decimal};
 use rust_decimal_macros::dec;
 use uuid::Uuid;
 
-#[derive(Debug, Clone)]
-pub enum WaterType {
-    Fresh,
-    Salt,
-    EN13319,
-    Custom(f32),
-}
-
 pub trait DecimalToDms {
     fn to_dms(&self) -> Result<String, GeocodingError>;
 }
@@ -99,8 +91,6 @@ pub struct DiveSite {
     pub altitude: f32,
     /// The name of the bod of water where the image was created.
     pub body_of_water: Option<String>,
-    /// The freeform name of the body of water, e.g. Pacific Ocean
-    pub water_type: WaterType,
     /// MacDive Primary ID
     pub site_id: i32,
 }
@@ -144,7 +134,6 @@ impl TryInto<DiveSite> for crate::macdive::models::DiveSite {
             longitude: self.longitude.ok_or(ConversionError::MissingLongitude)?,
             altitude: 0.0,
             body_of_water: None,
-            water_type: WaterType::Salt,
             site_id: self.id,
         })
     }
