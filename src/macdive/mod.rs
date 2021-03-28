@@ -36,7 +36,6 @@ pub fn sites(connection: &SqliteConnection) -> Result<Vec<DiveSite>, MacDiveErro
     let results = divesites
         .filter(latitude.is_not_null())
         .filter(longitude.is_not_null())
-        .limit(5)
         .load::<DiveSite>(connection)
         .map_err(DatabaseError::Query)?;
 
