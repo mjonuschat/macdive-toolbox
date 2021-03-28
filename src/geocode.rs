@@ -38,7 +38,11 @@ pub fn geocode_site(site: DiveSite, key: &str) -> Result<DiveSite, GeocodingErro
                 .types
                 .contains(&PlaceType::AdministrativeAreaLevel2)
             {
-                geocoded_site.county = Some(component.long_name);
+                geocoded_site.county = component
+                    .long_name
+                    .trim()
+                    .strip_suffix("County")
+                    .map(|v| v.trim().to_string());
                 continue;
             }
             // County
