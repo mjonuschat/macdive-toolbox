@@ -33,19 +33,19 @@ pub fn geocode_site(site: DiveSite, key: &str) -> Result<DiveSite, GeocodingErro
                 geocoded_site.state = Some(component.long_name);
                 continue;
             }
-            // County
+            // Region
             if component
                 .types
                 .contains(&PlaceType::AdministrativeAreaLevel2)
             {
-                geocoded_site.county = component
+                geocoded_site.region = component
                     .long_name
                     .trim()
                     .strip_suffix("County")
                     .map(|v| v.trim().to_string());
                 continue;
             }
-            // County
+            // City
             if component.types.contains(&PlaceType::Locality) {
                 geocoded_site.locality = Some(component.short_name);
                 continue;

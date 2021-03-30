@@ -69,11 +69,8 @@ pub struct DiveSite {
     /// Since the abbreviation for a State or Province may be unknown consider using the
     /// full spelling of the name.
     pub state: Option<String>,
-    /// The name of the sub-subregion of a country, could be a county where the image was created
-    ///
-    /// Since the abbreviation for a State or Province may be unknown consider using the
-    /// full spelling of the name.
-    pub county: Option<String>,
+    /// The name of the sub-subregion of a country, could be a county or region name where the image was created
+    pub region: Option<String>,
     /// The name of the city of the location where the image was created
     ///
     /// If there is no city, use the Sublocation field alone to specify where the
@@ -127,7 +124,7 @@ impl TryInto<DiveSite> for crate::macdive::models::DiveSite {
             country: self.country.ok_or(ConversionError::MissingCountry)?,
             iso_country_code: country.alpha2,
             state: None,
-            county: None,
+            region: None,
             locality: None,
             name: self.name.ok_or(ConversionError::MissingName)?,
             latitude: self.latitude.ok_or(ConversionError::MissingLatitude)?,

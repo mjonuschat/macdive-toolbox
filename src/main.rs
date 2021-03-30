@@ -26,7 +26,7 @@ fn print_summary(presets: &[MetadataPreset]) {
     table.set_titles(Row::new(vec![
         Cell::new("Site").style_spec("b"),
         Cell::new("City").style_spec("b"),
-        Cell::new("County").style_spec("b"),
+        Cell::new("Region").style_spec("b"),
         Cell::new("State").style_spec("b"),
         Cell::new("Country").style_spec("b"),
         Cell::new("GPS").style_spec("b"),
@@ -36,7 +36,7 @@ fn print_summary(presets: &[MetadataPreset]) {
         table.add_row(Row::new(vec![
             Cell::new(&site.location),
             Cell::new(&site.city),
-            Cell::new(&site.county),
+            Cell::new(&site.region),
             Cell::new(&site.state),
             Cell::new(&site.country),
             Cell::new(&site.gps),

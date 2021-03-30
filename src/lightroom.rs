@@ -52,7 +52,7 @@ pub struct MetadataPreset {
     pub title: String,
     pub location: String,
     pub city: String,
-    pub county: String,
+    pub region: String,
     pub state: String,
     pub country: String,
     pub iso_country_code: String,
@@ -65,18 +65,18 @@ impl TryFrom<DiveSite> for MetadataPreset {
 
     fn try_from(site: DiveSite) -> Result<Self, Self::Error> {
         let latlng: LatLng = site.clone().try_into()?;
-        let county = site.county.unwrap_or_else(|| String::from("Unknown"));
+        let region = site.region.unwrap_or_else(|| String::from("Unknown"));
 
         Ok(Self {
             id: site.uuid,
             gps: latlng.to_dms()?,
             title: format!(
-                "[Location] {county}: {name}",
-                county = &county,
+                "[Location] {region}: {name}",
+                region = &region,
                 name = &site.name
             ),
             city: site.locality.unwrap_or_default(),
-            county,
+            region,
             country: site.country,
             iso_country_code: site.iso_country_code,
             location: site.name,
@@ -94,7 +94,7 @@ impl Default for MetadataPreset {
             gps: r#"0°00'00.0"N 0°00'00.0"E"#.to_string(),
             title: "".to_string(),
             city: "".to_string(),
-            county: "".to_string(),
+            region: "".to_string(),
             country: "".to_string(),
             iso_country_code: "".to_string(),
             location: "".to_string(),
