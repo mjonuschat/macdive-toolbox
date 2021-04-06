@@ -1,10 +1,48 @@
 use crate::errors::GeocodingError;
-use crate::types::DiveSite;
+use crate::types::{DiveSite, LocationOverride};
 
 use std::convert::TryInto;
 
+use geo::{contains::Contains, Coordinate};
 use google_maps::{ClientSettings, LatLng, PlaceType};
 
+fn find_override(
+    latitude: f32,
+    longitude: f32,
+    overrides: &[LocationOverride],
+) -> Option<&LocationOverride> {
+    overrides.iter().find(|location| {
+        location.polygon().contains(&Coordinate {
+            x: longitude,
+            y: latitude,
+        })
+    })
+}
+
+pub fn apply_overrides(
+    mut site: DiveSite,
+    overrides: &[LocationOverride],
+) -> Result<DiveSite, GeocodingError> {
+    if let Some(loc) = find_override(site.latitude, site.longitude, overrides) {
+        if let Some(country) = &loc.country {
+            site.country = country.to_owned()
+        }
+        if let Some(code) = &loc.iso_country_code {
+            site.iso_country_code = code.to_owned()
+        }
+        if let Some(state) = &loc.state {
+            site.state = Some(state.to_owned())
+        }
+        if let Some(region) = &loc.region {
+            site.region = Some(region.to_owned())
+        }
+        if let Some(locality) = &loc.locality {
+            site.locality = Some(locality.to_owned())
+        }
+    }
+
+    Ok(site)
+}
 pub fn geocode_site(site: DiveSite, key: &str) -> Result<DiveSite, GeocodingError> {
     let mut client = ClientSettings::new(key);
     let latlng: LatLng = site.clone().try_into()?;

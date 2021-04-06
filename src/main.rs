@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate diesel;
 
+use anyhow::Result;
 use clap::Clap;
 use indicatif::ProgressBar;
 use prettytable::{Cell, Row, Table};
@@ -17,7 +18,6 @@ mod types;
 use arguments::Options;
 use console::{style, Emoji};
 use errors::ConversionError;
-use geocode::geocode_site;
 use lightroom::MetadataPreset;
 
 fn print_summary(presets: &[MetadataPreset]) {
@@ -52,7 +52,7 @@ static SATELLITE: Emoji<'_, '_> = Emoji("🛰️   ", "");
 static FILE_FOLDER: Emoji<'_, '_> = Emoji("📂  ", "");
 
 // TODO: Exit code handling
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<()> {
     let options = Options::parse();
 
     println!(
@@ -87,12 +87,16 @@ fn main() -> anyhow::Result<()> {
         .into_iter()
         .map(|site| {
             let s = if let Some(key) = &options.api_key {
-                geocode_site(site, key)
+                geocode::geocode_site(site, key)
             } else {
                 Ok(site)
             };
             pb.inc(1);
             s.map_err(ConversionError::GeocodingError)
+                .and_then(|site| {
+                    geocode::apply_overrides(site, &options.location_overrides())
+                        .map_err(ConversionError::GeocodingError)
+                })
                 .and_then(|site| site.try_into())
         })
         .collect::<Result<Vec<MetadataPreset>, errors::ConversionError>>()?;

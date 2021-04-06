@@ -7,6 +7,8 @@ use std::str::FromStr;
 use google_maps::LatLng;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use rust_decimal_macros::dec;
+use serde_derive::Deserialize;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 pub trait DecimalToDms {
@@ -48,6 +50,32 @@ impl DecimalToDms for LatLng {
             lng_seconds.normalize(),
             lng_direction
         ))
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Overrides {
+    pub locations: HashMap<String, LocationOverride>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct LocationOverride {
+    pub area: Vec<(f32, f32)>,
+    /// The full name should be expressed as a verbal name and not as a code
+    pub country: Option<String>,
+    /// ISO country code of the location where the image was created
+    pub iso_country_code: Option<String>,
+    /// The name of the subregion of a country, either a State or Province where the image was created
+    pub state: Option<String>,
+    /// The name of the sub-subregion of a country, could be a county or region name where the image was created
+    pub region: Option<String>,
+    /// The name of the city or area
+    pub locality: Option<String>,
+}
+
+impl LocationOverride {
+    pub fn polygon(&self) -> geo::Polygon<f32> {
+        geo::Polygon::new(geo::LineString::from(self.area.clone()), vec![])
     }
 }
 
