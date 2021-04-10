@@ -151,10 +151,14 @@ pub fn write_preset(path: &Path, content: &str) -> Result<(), LightroomTemplateE
 pub fn write_presets(
     path: &Path,
     presets: &[MetadataPreset],
+    existing: &HashMap<Uuid, DirEntry>,
 ) -> Result<(), LightroomTemplateError> {
     for preset in presets {
         let content = preset.render()?;
-        let filename = format!("MacDive-{}.lrtemplate", preset.id);
+        let filename = existing
+            .get(&preset.id)
+            .and_then(|v| v.file_name().to_str().map(|v| v.to_string()))
+            .unwrap_or_else(|| format!("MacDive-{}.lrtemplate", &preset.id));
 
         write_preset(path.join(filename).as_path(), &content)?
     }

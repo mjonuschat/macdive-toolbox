@@ -80,7 +80,7 @@ fn main() -> Result<()> {
     );
     let sites: Vec<types::DiveSite> = sites
         .into_iter()
-        .filter(|site| !existing.contains_key(&site.uuid))
+        .filter(|site| options.force || !existing.contains_key(&site.uuid))
         .collect();
     let pb = ProgressBar::new(sites.len() as u64);
     let presets = sites
@@ -107,7 +107,7 @@ fn main() -> Result<()> {
         style("[4/4]").bold().dim(),
         FILE_FOLDER
     );
-    lightroom::write_presets(&options.lightroom_metadata()?, &presets)?;
+    lightroom::write_presets(&options.lightroom_metadata()?, &presets, &existing)?;
 
     if !presets.is_empty() {
         print_summary(&presets);

@@ -27,6 +27,9 @@ pub struct Options {
     /// Google Maps API key for reverse geocoding
     #[clap(short, long, value_hint=ValueHint::Other)]
     pub api_key: Option<String>,
+    /// Force export and overwrite all existing files
+    #[clap(short, long)]
+    pub force: bool,
 }
 
 #[derive(Error, Debug)]
