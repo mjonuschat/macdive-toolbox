@@ -1,12 +1,14 @@
-#[derive(Debug, Queryable)]
+use crate::macdive::types::NsDate;
+
+#[derive(Debug)]
 pub struct DiveSite {
-    pub id: i32,
-    pub ent: Option<i32>,
-    pub opt: Option<i32>,
+    pub id: i64,
+    pub ent: Option<i64>,
+    pub opt: Option<i64>,
     pub altitude: Option<f32>,
     pub latitude: Option<f32>,
     pub longitude: Option<f32>,
-    pub modified_at: Option<chrono::NaiveDateTime>,
+    pub modified_at: Option<NsDate>,
     pub body_of_water: Option<String>,
     pub country: Option<String>,
     pub difficulty: Option<String>,

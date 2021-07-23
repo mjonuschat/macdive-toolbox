@@ -117,7 +117,7 @@ pub struct DiveSite {
     /// The name of the bod of water where the image was created.
     pub body_of_water: Option<String>,
     /// MacDive Primary ID
-    pub site_id: i32,
+    pub site_id: i64,
 }
 
 impl TryFrom<DiveSite> for LatLng {

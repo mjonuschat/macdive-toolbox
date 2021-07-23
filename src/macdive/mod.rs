@@ -1,43 +1,69 @@
 pub(crate) mod models;
-mod schema;
+// mod schema;
 mod types;
 
-use diesel::prelude::*;
 use std::path::Path;
 use thiserror::Error;
 
 use models::DiveSite;
+use sqlx::{Pool, Sqlite, SqlitePool};
+
+type ConnectionPool = Pool<Sqlite>;
 
 #[derive(Error, Debug)]
 pub enum DatabaseError {
     #[error("Invalid path to MacDive database")]
     InvalidPath,
-    #[error("Error establishing connection to MacDive Database: `{0}`")]
-    Connection(#[from] ConnectionError),
     #[error("Error querying MacDive database: `{0}`")]
-    Query(#[from] diesel::result::Error),
+    Query(#[from] sqlx::Error),
 }
 
 #[derive(Error, Debug)]
 pub enum MacDiveError {
     #[error("Error interacting with MacDive database: {0}")]
-    DatabaseError(#[from] DatabaseError),
+    DatabaseError(#[from] sqlx::Error),
 }
 
-pub(crate) fn establish_connection(path: &Path) -> Result<SqliteConnection, DatabaseError> {
+pub(crate) async fn establish_connection(path: &Path) -> Result<ConnectionPool, DatabaseError> {
     let database_url = path.to_str().ok_or(DatabaseError::InvalidPath)?;
-    SqliteConnection::establish(database_url).map_err(DatabaseError::Connection)
+    let pool = SqlitePool::connect(database_url).await;
+
+    Ok(pool?)
 }
 
-pub fn sites(connection: &SqliteConnection) -> Result<Vec<DiveSite>, MacDiveError> {
-    // let conn = establish_connection(database).map_err(MacDiveError::DatabaseError)?;
-    use schema::divesites::dsl::*;
-
-    let results = divesites
-        .filter(latitude.is_not_null())
-        .filter(longitude.is_not_null())
-        .load::<DiveSite>(connection)
-        .map_err(DatabaseError::Query)?;
+pub async fn sites(connection: &ConnectionPool) -> Result<Vec<DiveSite>, MacDiveError> {
+    let results = sqlx::query_as!(
+        DiveSite,
+        r#"
+        SELECT 
+            Z_PK AS id,
+            Z_ENT AS ent,
+            Z_OPT AS opt,
+            ZALTITUDE AS altitude,
+            ZGPSLAT AS latitude,
+            ZGPSLON AS longitude,
+            CAST(ZMODIFIED AS FLOAT) AS "modified_at: _",
+            ZBODYOFWATER AS body_of_water,
+            ZCOUNTRY AS country,
+            ZDIFFICULTY AS difficulty,
+            ZDIVELOGUUID AS divelog_uuid,
+            ZFLAG AS flag,
+            ZIMAGE AS image,
+            ZLASTDIVELOGIMAGEHASH AS last_divelog_image_hash,
+            ZLOCATION AS location,
+            ZNAME AS name,
+            ZNOTES AS notes,
+            ZUUID AS uuid,
+            ZWATERTYPE AS water_type,
+            ZZOOM AS zoom
+        FROM ZDIVESITE 
+        WHERE 
+            latitude IS NOT NULL 
+            AND longitude IS NOT NULL
+        "#
+    )
+    .fetch_all(connection)
+    .await?;
 
     Ok(results)
 }

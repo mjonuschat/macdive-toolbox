@@ -1,10 +1,4 @@
 use chrono::{Duration, NaiveDate, NaiveDateTime};
-use diesel::backend::Backend;
-use diesel::{
-    deserialize::{FromSql, Result},
-    sql_types::Text,
-    sqlite::Sqlite,
-};
 use once_cell::sync::Lazy;
 
 /// A representation of a specific point in time that bridges to Date
@@ -14,23 +8,19 @@ use once_cell::sync::Lazy;
 /// interval relative to an absolute reference date (2001-01-01T00:00:00Z).
 ///
 /// [`NsDate`]: https://developer.apple.com/documentation/foundation/nsdate
-#[derive(Debug, Clone, Copy, Default, QueryId, SqlType)]
-#[sqlite_type = "Text"]
-pub struct NsDate;
+#[derive(Debug, Clone, Copy, sqlx::Type)]
+#[sqlx(transparent)]
+pub struct NsDate(f64);
 
 static NSDATE_EPOCH: Lazy<NaiveDateTime> =
     Lazy::new(|| NaiveDate::from_ymd(2001, 1, 1).and_hms(0, 0, 0));
 
-impl FromSql<NsDate, Sqlite> for NaiveDateTime {
-    fn from_sql(bytes: Option<&<Sqlite as Backend>::RawValue>) -> Result<Self> {
-        let value = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
-
-        if let Ok(ts) = value.parse::<f64>() {
-            if let Ok(duration) = Duration::from_std(std::time::Duration::from_secs_f64(ts)) {
-                return Ok(*NSDATE_EPOCH + duration);
-            }
+impl From<NsDate> for NaiveDateTime {
+    fn from(value: NsDate) -> Self {
+        if let Ok(duration) = Duration::from_std(std::time::Duration::from_secs_f64(value.0)) {
+            return *NSDATE_EPOCH + duration;
         }
 
-        Err(format!("Invalid datetime {}", value).into())
+        *NSDATE_EPOCH
     }
 }

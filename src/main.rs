@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate diesel;
-
 use anyhow::Result;
 use clap::Clap;
 use indicatif::ProgressBar;
@@ -51,8 +48,8 @@ static DIVING_MASK: Emoji<'_, '_> = Emoji("🤿️  ", "");
 static SATELLITE: Emoji<'_, '_> = Emoji("🛰️   ", "");
 static FILE_FOLDER: Emoji<'_, '_> = Emoji("📂  ", "");
 
-// TODO: Exit code handling
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let options = Options::parse();
 
     println!(
@@ -67,8 +64,9 @@ fn main() -> Result<()> {
         style("[2/4]").bold().dim(),
         DIVING_MASK
     );
-    let connection = macdive::establish_connection(&options.macdive_database()?)?;
-    let sites = macdive::sites(&connection)?
+    let connection = macdive::establish_connection(&options.macdive_database()?).await?;
+    let sites = macdive::sites(&connection)
+        .await?
         .into_iter()
         .map(|site| site.try_into())
         .collect::<Result<Vec<types::DiveSite>, ConversionError>>()?;
