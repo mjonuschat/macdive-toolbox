@@ -1,14 +1,14 @@
-// use anyhow::{bail, Context};
-use crate::types::{LocationOverride, Overrides};
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::{AppSettings, Clap, ValueHint};
-use std::collections::HashMap;
-use std::path::PathBuf;
-use thiserror::Error;
+
+use crate::errors::PathError;
+use crate::types::{LocationOverride, Overrides};
 
 static LIGHTROOM_DATA: &str = "Adobe/Lightroom/Metadata Presets/";
-static MACDIVE_DATA: &str = "Macdive/MacDive.sqlite";
+static MACDIVE_DATA: &str = "MacDive/MacDive.sqlite";
 
 #[derive(Clap, Debug)]
 #[clap(author, about, version, name = "MacDive Dive Site Exporter", setting=AppSettings::ColorAuto, setting=AppSettings::ColoredHelp)]
@@ -31,16 +31,6 @@ pub struct Options {
     /// Force export and overwrite all existing files
     #[clap(short, long)]
     pub force: bool,
-}
-
-#[derive(Error, Debug)]
-pub enum PathError {
-    #[error("Path `{0}` could not be resolved")]
-    Canonicalize(#[from] std::io::Error),
-    #[error("Path to user's data directory could not be detected")]
-    DataDir,
-    #[error("File or directory `{0}` is not accessible")]
-    Inaccessible(String),
 }
 
 impl Options {

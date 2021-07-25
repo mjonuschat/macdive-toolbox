@@ -8,15 +8,18 @@ use std::convert::TryInto;
 mod arguments;
 mod errors;
 mod geocode;
+mod inaturalist;
 mod lightroom;
 mod macdive;
 mod types;
 
+use crate::macdive::models::{Critter, CritterUpdate};
 use arguments::Options;
 use console::{style, Emoji};
 use errors::ConversionError;
 use futures::StreamExt;
 use lightroom::MetadataPreset;
+use uuid::Uuid;
 
 fn print_summary(presets: &[MetadataPreset]) {
     let mut table = Table::new();
@@ -49,10 +52,7 @@ static DIVING_MASK: Emoji<'_, '_> = Emoji("🤿️  ", "");
 static SATELLITE: Emoji<'_, '_> = Emoji("🛰️   ", "");
 static FILE_FOLDER: Emoji<'_, '_> = Emoji("📂  ", "");
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    let options = Options::parse();
-
+async fn export(options: &Options) -> Result<()> {
     println!(
         "{} {}Locating existing metadata presets...",
         style("[1/4]").bold().dim(),
@@ -119,5 +119,90 @@ async fn main() -> Result<()> {
         print_summary(&presets);
     }
 
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let options = Options::parse();
+    // export(&options).await?;
+
+    let connection = macdive::establish_connection(&options.macdive_database()?).await?;
+    let critters = crate::macdive::critters(&connection).await?;
+
+    let species = critters
+        .iter()
+        .filter_map(|c| c.species.as_deref())
+        .collect::<Vec<_>>();
+
+    crate::inaturalist::cache_species(&species).await?;
+
+    for critter in critters {
+        if let Some(scientific_name) = critter.species.as_deref() {
+            let taxon = crate::inaturalist::get_taxon_by_name(scientific_name).await?;
+
+            let current_name = critter
+                .name
+                .as_deref()
+                .map(|v| change_case::title_case(v.trim()));
+            let preferred_name = taxon
+                .preferred_common_name
+                .as_deref()
+                .map(|v| change_case::title_case(v.trim()));
+
+            let scientific_name = change_case::title_case(scientific_name);
+
+            let mut changeset: CritterUpdate = CritterUpdate {
+                id: critter.id,
+                ..Default::default()
+            };
+
+            if let Some(preferred_scientific_name) = taxon.name.as_deref() {
+                let preferred_scientific_name =
+                    change_case::sentence_case(preferred_scientific_name);
+                let current_scientific_name = change_case::sentence_case(&scientific_name);
+
+                if current_scientific_name != preferred_scientific_name {
+                    println!(
+                        "Mismatched scientific name: MacDive: {} => iNat: {}",
+                        current_scientific_name, preferred_scientific_name
+                    );
+                    changeset.scientific_name = Some(preferred_scientific_name);
+                }
+            }
+
+            match (current_name, preferred_name) {
+                (Some(current_name), Some(preferred_name)) if preferred_name != current_name => {
+                    // TODO: Make this a nice table
+                    println!(
+                        "Mismatched common name: MacDive {:?} => iNat: {:?}",
+                        &current_name, &preferred_name
+                    );
+                    changeset.common_name = Some(preferred_name);
+                }
+                (None, Some(preferred_name)) => {
+                    println!(
+                        "Found new common name for {}: {}",
+                        &scientific_name, &preferred_name
+                    );
+                    changeset.common_name = Some(preferred_name);
+                }
+                (Some(_), Some(_)) => {
+                    // Pass, names are identical
+                }
+                (Some(_), None) => {
+                    // Pass, no registered common name in iNaturalist
+                }
+                (None, None) => {
+                    println!("Woha, no common name for species: {}", &scientific_name)
+                }
+            }
+
+            // TODO: Guard with command line flag!
+            if changeset.has_changes() {
+                crate::macdive::update_critter(&changeset, &connection).await?;
+            }
+        }
+    }
     Ok(())
 }

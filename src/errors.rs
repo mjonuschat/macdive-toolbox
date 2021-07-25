@@ -43,3 +43,21 @@ pub enum LightroomTemplateError {
     #[error("Error parsing existing Lightroom Template")]
     Parsing,
 }
+
+#[derive(Error, Debug)]
+pub enum DatabaseError {
+    #[error("Invalid path to MacDive database")]
+    InvalidPath,
+    #[error("Error querying MacDive database: `{0}`")]
+    Query(#[from] sqlx::Error),
+}
+
+#[derive(Error, Debug)]
+pub enum PathError {
+    #[error("Path `{0}` could not be resolved")]
+    Canonicalize(#[from] std::io::Error),
+    #[error("Path to user's data directory could not be detected")]
+    DataDir,
+    #[error("File or directory `{0}` is not accessible")]
+    Inaccessible(String),
+}

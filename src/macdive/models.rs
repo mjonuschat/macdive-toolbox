@@ -1,6 +1,34 @@
 use crate::macdive::types::NsDate;
 
 #[derive(Debug)]
+pub struct Critter {
+    pub id: i64,
+    pub ent: Option<i64>,
+    pub opt: Option<i64>,
+    pub category: Option<i64>,
+    pub size: Option<f32>,
+    pub image: Option<String>,
+    pub name: Option<String>,
+    pub notes: Option<String>,
+    pub species: Option<String>,
+    pub uuid: Option<String>,
+}
+
+#[derive(Debug, Default)]
+pub struct CritterUpdate {
+    pub id: i64,
+    pub category: Option<i64>,
+    pub common_name: Option<String>,
+    pub scientific_name: Option<String>,
+}
+
+impl CritterUpdate {
+    pub fn has_changes(&self) -> bool {
+        self.category.is_some() || self.common_name.is_some() || self.scientific_name.is_some()
+    }
+}
+
+#[derive(Debug)]
 pub struct DiveSite {
     pub id: i64,
     pub ent: Option<i64>,

@@ -1,6 +1,5 @@
-use crate::errors::{ConversionError, GeocodingError};
-
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 
@@ -8,8 +7,10 @@ use google_maps::LatLng;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use rust_decimal_macros::dec;
 use serde_derive::{Deserialize, Serialize};
-use std::collections::HashMap;
+use sqlx::{Pool, Sqlite};
 use uuid::Uuid;
+
+use crate::errors::{ConversionError, GeocodingError};
 
 pub trait DecimalToDms {
     fn to_dms(&self) -> Result<String, GeocodingError>;
@@ -232,3 +233,5 @@ mod tests {
         );
     }
 }
+
+pub type ConnectionPool = Pool<Sqlite>;

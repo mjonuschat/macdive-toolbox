@@ -1,22 +1,16 @@
-pub(crate) mod models;
-// mod schema;
-mod types;
-
 use std::path::Path;
+
+use sqlx::SqlitePool;
 use thiserror::Error;
 
-use models::DiveSite;
-use sqlx::{Pool, Sqlite, SqlitePool};
+use models::{Critter, DiveSite};
 
-type ConnectionPool = Pool<Sqlite>;
+use crate::errors::DatabaseError;
+use crate::macdive::models::CritterUpdate;
+use crate::types::ConnectionPool;
 
-#[derive(Error, Debug)]
-pub enum DatabaseError {
-    #[error("Invalid path to MacDive database")]
-    InvalidPath,
-    #[error("Error querying MacDive database: `{0}`")]
-    Query(#[from] sqlx::Error),
-}
+pub(crate) mod models;
+mod types;
 
 #[derive(Error, Debug)]
 pub enum MacDiveError {
@@ -31,6 +25,29 @@ pub(crate) async fn establish_connection(path: &Path) -> Result<ConnectionPool, 
     Ok(pool?)
 }
 
+pub async fn critters(connection: &ConnectionPool) -> Result<Vec<Critter>, MacDiveError> {
+    let results = sqlx::query_as!(
+        Critter,
+        r#"
+        SELECT 
+            Z_PK AS id,
+            Z_ENT AS ent,
+            Z_OPT AS opt,
+            ZRELATIONSHIPCRITTERTOCRITTERCATEGORY AS category,
+            ZSIZE AS size,
+            ZIMAGE AS image,
+            ZNAME AS name,
+            ZNOTES AS notes,
+            ZSPECIES AS species,
+            ZUUID AS "uuid: _"
+        FROM ZCRITTER
+        "#
+    )
+    .fetch_all(connection)
+    .await?;
+
+    Ok(results)
+}
 pub async fn sites(connection: &ConnectionPool) -> Result<Vec<DiveSite>, MacDiveError> {
     let results = sqlx::query_as!(
         DiveSite,
@@ -66,4 +83,39 @@ pub async fn sites(connection: &ConnectionPool) -> Result<Vec<DiveSite>, MacDive
     .await?;
 
     Ok(results)
+}
+
+pub async fn update_critter(
+    changeset: &CritterUpdate,
+    connection: &ConnectionPool,
+) -> Result<(), MacDiveError> {
+    let mut sql = String::from("UPDATE ZCRITTER SET Z_PK=?");
+    let mut params: Vec<String> = Vec::new();
+
+    if let Some(name) = &changeset.common_name {
+        let name = format!("Review: {}", name);
+
+        sql.push_str(", ZNAME=?");
+        params.push(name);
+    }
+
+    if let Some(name) = &changeset.scientific_name {
+        let name = format!("Review: {}", name);
+
+        sql.push_str(", ZSPECIES=?");
+        params.push(name);
+    }
+
+    sql.push_str(" WHERE Z_PK=?");
+
+    let mut query = sqlx::query(&sql);
+    query = query.bind(changeset.id);
+    for p in params {
+        query = query.bind(p);
+    }
+    query = query.bind(changeset.id);
+
+    query.execute(connection).await?;
+
+    Ok(())
 }
