@@ -43,8 +43,8 @@ pub fn apply_overrides(
 
     Ok(site)
 }
-pub fn geocode_site(site: DiveSite, key: &str) -> Result<DiveSite, GeocodingError> {
-    let mut client = ClientSettings::new(key);
+pub async fn geocode_site(site: DiveSite, key: &str) -> Result<DiveSite, GeocodingError> {
+    let client = ClientSettings::new(key);
     let latlng: LatLng = site.clone().try_into()?;
 
     let location = client
@@ -52,6 +52,7 @@ pub fn geocode_site(site: DiveSite, key: &str) -> Result<DiveSite, GeocodingErro
         // .with_result_type(PlaceType::PlusCode)
         .with_result_types(&[PlaceType::PlusCode, PlaceType::Country])
         .execute()
+        .await
         .map_err(|_e| GeocodingError::GoogleMaps)?;
 
     let mut geocoded_site = DiveSite { ..site };

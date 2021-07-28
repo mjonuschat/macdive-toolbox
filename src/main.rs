@@ -15,6 +15,7 @@ mod types;
 use arguments::Options;
 use console::{style, Emoji};
 use errors::ConversionError;
+use futures::StreamExt;
 use lightroom::MetadataPreset;
 
 fn print_summary(presets: &[MetadataPreset]) {
@@ -76,28 +77,35 @@ async fn main() -> Result<()> {
         style("[3/4]").bold().dim(),
         SATELLITE
     );
-    let sites: Vec<types::DiveSite> = sites
+    let mut sites: Vec<types::DiveSite> = sites
         .into_iter()
         .filter(|site| options.force || !existing.contains_key(&site.uuid))
         .collect();
     let pb = ProgressBar::new(sites.len() as u64);
+
+    if let Some(key) = &options.api_key {
+        sites = futures::stream::iter(sites)
+            .map(|site| {
+                pb.inc(1);
+                geocode::geocode_site(site, key)
+            })
+            .buffer_unordered(10usize)
+            .collect::<Vec<_>>()
+            .await
+            .into_iter()
+            .map(|item| {
+                item.map_err(ConversionError::GeocodingError)
+                    .and_then(|site| {
+                        geocode::apply_overrides(site, &options.location_overrides())
+                            .map_err(ConversionError::GeocodingError)
+                    })
+            })
+            .collect::<Result<Vec<_>, ConversionError>>()?;
+    }
     let presets = sites
         .into_iter()
-        .map(|site| {
-            let s = if let Some(key) = &options.api_key {
-                geocode::geocode_site(site, key)
-            } else {
-                Ok(site)
-            };
-            pb.inc(1);
-            s.map_err(ConversionError::GeocodingError)
-                .and_then(|site| {
-                    geocode::apply_overrides(site, &options.location_overrides())
-                        .map_err(ConversionError::GeocodingError)
-                })
-                .and_then(|site| site.try_into())
-        })
-        .collect::<Result<Vec<MetadataPreset>, errors::ConversionError>>()?;
+        .map(|site| site.try_into())
+        .collect::<Result<Vec<MetadataPreset>, ConversionError>>()?;
     pb.finish_and_clear();
 
     println!(
