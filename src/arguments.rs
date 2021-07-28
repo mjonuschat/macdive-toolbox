@@ -5,7 +5,7 @@ use anyhow::Context;
 use clap::{AppSettings, Clap, ValueHint};
 
 use crate::errors::PathError;
-use crate::types::{LocationOverride, Overrides};
+use crate::types::{CritterCategoryOverride, LocationOverride, Overrides};
 
 static LIGHTROOM_DATA: &str = "Adobe/Lightroom/Metadata Presets/";
 static MACDIVE_DATA: &str = "MacDive/MacDive.sqlite";
@@ -61,6 +61,7 @@ impl Options {
             }
             None => Ok(Overrides {
                 locations: HashMap::new(),
+                critter_categories: CritterCategoryOverride::default(),
             }),
         }
     }

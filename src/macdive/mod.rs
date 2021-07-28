@@ -6,7 +6,7 @@ use thiserror::Error;
 use models::{Critter, DiveSite};
 
 use crate::errors::DatabaseError;
-use crate::macdive::models::CritterUpdate;
+use crate::macdive::models::{CritterCategory, CritterUpdate};
 use crate::types::ConnectionPool;
 
 pub(crate) mod models;
@@ -48,6 +48,7 @@ pub async fn critters(connection: &ConnectionPool) -> Result<Vec<Critter>, MacDi
 
     Ok(results)
 }
+
 pub async fn sites(connection: &ConnectionPool) -> Result<Vec<DiveSite>, MacDiveError> {
     let results = sqlx::query_as!(
         DiveSite,
@@ -118,4 +119,26 @@ pub async fn update_critter(
     query.execute(connection).await?;
 
     Ok(())
+}
+
+pub async fn critter_categories(
+    connection: &ConnectionPool,
+) -> Result<Vec<CritterCategory>, MacDiveError> {
+    let results = sqlx::query_as!(
+        CritterCategory,
+        r#"
+        SELECT 
+            Z_PK AS id,
+            Z_ENT AS ent,
+            Z_OPT AS opt,
+            ZIMAGE AS image,
+            ZNAME AS name,
+            ZUUID AS "uuid: _"
+        FROM ZCRITTERCATEGORY
+        "#
+    )
+    .fetch_all(connection)
+    .await?;
+
+    Ok(results)
 }

@@ -14,6 +14,16 @@ pub struct Critter {
     pub uuid: Option<String>,
 }
 
+#[derive(Debug)]
+pub struct CritterCategory {
+    pub id: i64,
+    pub ent: Option<i64>,
+    pub opt: Option<i64>,
+    pub image: Option<String>,
+    pub name: Option<String>,
+    pub uuid: Option<String>,
+}
+
 #[derive(Debug, Default)]
 pub struct CritterUpdate {
     pub id: i64,

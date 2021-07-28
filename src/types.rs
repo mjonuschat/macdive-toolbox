@@ -11,6 +11,8 @@ use sqlx::{Pool, Sqlite};
 use uuid::Uuid;
 
 use crate::errors::{ConversionError, GeocodingError};
+use crate::inaturalist::TaxonGroupName;
+use crate::macdive::models::Critter;
 
 pub trait DecimalToDms {
     fn to_dms(&self) -> Result<String, GeocodingError>;
@@ -57,6 +59,14 @@ impl DecimalToDms for LatLng {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Overrides {
     pub locations: HashMap<String, LocationOverride>,
+    pub critter_categories: CritterCategoryOverride,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct CritterCategoryOverride {
+    pub group_names: HashMap<TaxonGroupName, TaxonGroupName>,
+    pub ignored_common_names: HashMap<String, Vec<String>>,
+    pub preferred_higher_ranks: HashMap<String, Vec<TaxonGroupName>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

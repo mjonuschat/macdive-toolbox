@@ -10,6 +10,7 @@ mod helpers;
 mod types;
 
 pub use helpers::*;
+pub use types::*;
 
 static INAT_API_LIMIT: Lazy<RateLimiter<NotKeyed, InMemoryState, QuantaClock>> =
     Lazy::new(|| RateLimiter::direct(Quota::per_second(nonzero!(1u32))));
