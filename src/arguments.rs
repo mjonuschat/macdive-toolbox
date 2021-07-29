@@ -72,6 +72,12 @@ impl Options {
             .unwrap_or_else(|_| Vec::new())
     }
 
+    pub fn critter_categories_overrides(&self) -> CritterCategoryOverride {
+        self.overrides()
+            .map(|v| v.critter_categories)
+            .unwrap_or_else(|_| CritterCategoryOverride::default())
+    }
+
     pub fn lightroom_metadata(&self) -> Result<PathBuf, PathError> {
         self.resolve_path(&self.lightroom, LIGHTROOM_DATA)
     }

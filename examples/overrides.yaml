@@ -135,3 +135,92 @@ locations:
     state: California
     region: Northern Channel Islands
     locality: San Miguel Island
+critter_categories:
+  group_names:
+    ? Class: "Sea Urchins, Sand Dollars, and Heart Urchins"
+    : Custom: Sea Urchins
+    ? Infraorder: Spiny and Slipper Lobsters
+    : Custom: Lobsters
+    ? Family: Reef Lobsters
+    : Custom: Lobsters
+    ? Class: Brittle Stars
+    : Custom: Sea Stars
+    ? Infraclass: Euthyneuran Gastropods
+    : Custom: Sea Slugs
+    ? Subclass: Sedentary and Tube-dwelling Bristleworms
+    : Custom: Tube Worms
+    ? Subclass: Caenogastropods
+    : Custom: Sea Snails
+    ? Subclass: Gastropods
+    : Custom: Sea Snails
+    ? Family: Bristle Worms
+    : Custom: Worms
+    ? Infraorder: Caridean Shrimps
+    : Custom: Shrimps
+    ? Infraorder: Coral and Glass Sponge Shrimps
+    : Custom: Shrimps
+    ? Order: Side-gilled sea slugs
+    : Custom: Sea Slugs
+    ? Order: Stony Corals
+    : Custom: Corals
+  ignored_common_names:
+    class:
+      - Demosponges
+    infraorder:
+      - Cetaceans
+  preferred_higher_ranks:
+    class:
+      - Phylum: Sponges
+      - Subphylum: Tunicates
+    order:
+      - Class: "Sea Urchins, Sand Dollars, and Heart Urchins"
+      - Class: Sea Stars
+      - Class: Brittle Stars
+      - Class: Bivalves
+      - Class: Birds
+      - Infraclass: Sharks
+      - Infraclass: Rays
+      - Infraclass: Barnacles
+#      - Infraclass: Euthyneuran Gastropods
+      - Superorder: Squids and Cuttlefishes
+    family:
+      - Superorder: Squids and Cuttlefishes
+      - Order: Flatfishes
+      - Order: True Eels
+      - Order: Nudibranchs
+      - Order: Sea Anemones
+      - Suborder: Prawns
+      - Class: Sea Stars
+      - Subclass: Mantis Shrimps
+      - Subclass: Sedentary and Tube-dwelling Bristleworms
+      - Subclass: Caenogastropods
+      - Superfamily: Hermit Crabs
+    superorder:
+      - Class: Sea Stars
+      - Infraclass: Sharks
+      - Infraclass: Euthyneuran Gastropods
+    subclass:
+      - Class: Sea Anemones and Corals
+    suborder:
+      - Order: Octopuses
+    subfamily:
+      - Family: Cardinalfishes
+      - Family: Pufferfishes
+      - Family: Morays
+      - Family: Scorpionfishes
+      - Family: Jacks
+      - Family: Wrasses
+    genus:
+      - Subfamily: Damselfishes
+      - Subfamily: Groupers
+    superfamily:
+      - Subclass: Caenogastropods
+      - Infraclass: Euthyneuran Gastropods
+      - Order: Nudibranchs
+      - Order: Octopuses
+      - Order: Scallops and Allies
+      - Suborder: Prawns
+      - Infraorder: True Crabs
+    infraclass:
+      - Class: Bivalves
+      - Subclass: sea urchins

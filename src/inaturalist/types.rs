@@ -26,6 +26,7 @@ pub enum TaxonGroupName {
     Unspecified,
     Custom(String),
     Phylum(String),
+    Subphylum(String),
     Class(String),
     Subclass(String),
     Infraclass(String),
@@ -40,12 +41,6 @@ pub enum TaxonGroupName {
 }
 
 impl TaxonGroupName {
-    pub(crate) fn ignore_common_name(&self, class: &str, name: &str) -> bool {
-        false
-    }
-}
-
-impl TaxonGroupName {
     fn normalize(name: &str) -> String {
         change_case::title_case(
             name.to_lowercase()
@@ -56,6 +51,19 @@ impl TaxonGroupName {
                 .trim()
                 .trim_end_matches(','),
         )
+    }
+
+    pub(crate) fn ignore_common_name(
+        &self,
+        class: &str,
+        name: &str,
+        overrides: &CritterCategoryOverride,
+    ) -> bool {
+        overrides
+            .ignored_common_names
+            .get(class)
+            .map(|list| list.contains(&name.to_string()))
+            .unwrap_or(false)
     }
 
     pub fn prefer_higher_common_name(
@@ -77,6 +85,7 @@ impl Display for TaxonGroupName {
             TaxonGroupName::Unspecified => write!(f, "Unknown"),
             TaxonGroupName::Custom(name) => write!(f, "{}", Self::normalize(name)),
             TaxonGroupName::Phylum(name) => write!(f, "{}", Self::normalize(name)),
+            TaxonGroupName::Subphylum(name) => write!(f, "{}", Self::normalize(name)),
             TaxonGroupName::Class(name) => write!(f, "{}", Self::normalize(name)),
             TaxonGroupName::Subclass(name) => write!(f, "{}", Self::normalize(name)),
             TaxonGroupName::Infraclass(name) => write!(f, "{}", Self::normalize(name)),
@@ -116,14 +125,17 @@ impl TaxonCategoryName for Taxon {
                             group = TaxonGroupName::Phylum(name);
                         }
                     }
-                    // Some("subphylum") => {
-                    // }
+                    Some("subphylum") => {
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Subphylum(name);
+                        }
+                    }
                     Some("class") => {
                         if group.prefer_higher_common_name("class", overrides) {
                             continue;
                         }
                         if let Some(name) = ancestor.preferred_common_name {
-                            if !group.ignore_common_name("class", &name) {
+                            if !group.ignore_common_name("class", &name, overrides) {
                                 group = TaxonGroupName::Class(name);
                             }
                         }
@@ -275,9 +287,9 @@ impl TaxonCategoryName for Taxon {
                         }
                     }
                     Some("species") => {
-                        // if let Some(v) = TAXON_GROUP_NAME_OVERRIDES.get(&group) {
-                        //     group = v.clone();
-                        // }
+                        if let Some(v) = overrides.group_names.get(&group) {
+                            group = v.clone();
+                        }
                     }
                     Some(_) | None => {}
                 }

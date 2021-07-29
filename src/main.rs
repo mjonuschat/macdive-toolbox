@@ -227,96 +227,13 @@ async fn main() -> Result<()> {
         })
         .collect::<HashMap<_, _>>();
 
-    let config = Overrides {
-        locations: HashMap::new(),
-        critter_categories: CritterCategoryOverride {
-            group_names: maplit::hashmap! {
-                TaxonGroupName::Order("Side-gilled sea slugs".to_string()) => TaxonGroupName::Custom("Sea Slugs".to_string()),
-                TaxonGroupName::Infraorder("Caridean Shrimps".to_string()) => TaxonGroupName::Custom("Shrimps".to_string()),
-                TaxonGroupName::Infraorder("Coral and Glass Sponge Shrimps".to_string()) => TaxonGroupName::Custom("Shrimps".to_string()),
-                TaxonGroupName::Infraorder("Spiny and Slipper Lobsters".to_string()) => TaxonGroupName::Custom("Lobsters".to_string()),
-                TaxonGroupName::Class("Brittle Stars".to_string()) => TaxonGroupName::Custom("Sea Stars".to_string()),
-                TaxonGroupName::Class("Sea Urchins, Sand Dollars, and Heart Urchins".to_string()) => TaxonGroupName::Custom("Sea Urchins".to_string()),
-                TaxonGroupName::Subclass("Caenogastropods".to_string()) => TaxonGroupName::Custom("Sea Snails".to_string()),
-                TaxonGroupName::Subclass("Sedentary and Tube-dwelling Bristleworms".to_string()) => TaxonGroupName::Custom("Tube Worms".to_string()),
-                TaxonGroupName::Family("Bristle Worms".to_string()) => TaxonGroupName::Custom("Worms".to_string()),
-                TaxonGroupName::Infraclass("Euthyneuran Gastropods".to_string()) => TaxonGroupName::Custom("Sea Slugs".to_string()),
-            },
-            ignored_common_names: maplit::hashmap! {
-                "class".to_string() => vec!["Demosponges".to_string()]
-            },
-            preferred_higher_ranks: maplit::hashmap! {
-                "subclass".to_string() => vec![
-                    TaxonGroupName::Class("Sea Anemones and Corals".to_string()),
-                ],
-                "infraclass".to_string() => vec![
-                    TaxonGroupName::Class("Bivalves".to_string()),
-                    TaxonGroupName::Subclass("sea urchins".to_string()),
-                ],
-                "superorder".to_string() => vec![
-                    TaxonGroupName::Class("Sea Stars".to_string()),
-                    TaxonGroupName::Infraclass("Sharks".to_string()),
-                    TaxonGroupName::Infraclass("Euthyneuran Gastropods".to_string()),
-                ],
-                "order".to_string() => vec![
-                    TaxonGroupName::Class("Sea Anemones and Corals".to_string()),
-                    TaxonGroupName::Class("Sea Urchins, Sand Dollars, and Heart Urchins".to_string()),
-                    TaxonGroupName::Class("Sea Stars".to_string()),
-                    TaxonGroupName::Class("Brittle Stars".to_string()),
-                    TaxonGroupName::Class("Bivalves".to_string()),
-                    TaxonGroupName::Infraclass("Sharks".to_string()),
-                    TaxonGroupName::Infraclass("Rays".to_string()),
-                    TaxonGroupName::Infraclass("Euthyneuran Gastropods".to_string()),
-                    TaxonGroupName::Superorder("Squids and Cuttlefishes".to_string()),
-                ],
-                "suborder".to_string() => vec![
-                    TaxonGroupName::Order("Octopuses".to_string()),
-                ],
-                "superfamily".to_string() => vec![
-                    TaxonGroupName::Subclass("Caenogastropods".to_string()),
-                    TaxonGroupName::Infraclass("Euthyneuran Gastropods".to_string()),
-                    TaxonGroupName::Order("Nudibranchs".to_string()),
-                    TaxonGroupName::Order("Octopuses".to_string()),
-                    TaxonGroupName::Order("Scallops and Allies".to_string()),
-                    TaxonGroupName::Suborder("Prawns".to_string()),
-                    TaxonGroupName::Infraorder("True Crabs".to_string()),
-                ],
-                "family".to_string() => vec![
-                    TaxonGroupName::Superorder("Squids and Cuttlefishes".to_string()),
-                    TaxonGroupName::Order("Flatfishes".to_string()),
-                    TaxonGroupName::Order("True Eels".to_string()),
-                    TaxonGroupName::Order("Nudibranchs".to_string()),
-                    TaxonGroupName::Suborder("Prawns".to_string()),
-                    TaxonGroupName::Class("Sea Stars".to_string()),
-                    TaxonGroupName::Subclass("Mantis Shrimps".to_string()),
-                    TaxonGroupName::Subclass("Sedentary and Tube-dwelling Bristleworms".to_string()),
-                    TaxonGroupName::Subclass("Caenogastropods".to_string()),
-                    TaxonGroupName::Superfamily("Hermit Crabs".to_string()),
-                ],
-                "subfamily".to_string() => vec![
-                    TaxonGroupName::Family("Cardinalfishes".to_string()),
-                    TaxonGroupName::Family("Pufferfishes".to_string()),
-                    TaxonGroupName::Family("Morays".to_string()),
-                    TaxonGroupName::Family("Scorpionfishes".to_string()),
-                    TaxonGroupName::Family("Jacks".to_string()),
-                    TaxonGroupName::Family("Wrasses".to_string()),
-                ],
-                "genus".to_string() => vec![
-                    TaxonGroupName::Subfamily("Damselfishes".to_string()),
-                    TaxonGroupName::Subfamily("Groupers".to_string()),
-                ]
-            },
-        },
-    };
-
-    println!("{}", serde_yaml::to_string(&config)?);
-    let overrides = std::fs::read_to_string("examples/config.yaml")?;
-    let overrides: HashMap<String, Vec<TaxonGroupName>> = serde_yaml::from_str(&overrides)?;
-
     for critter in critters {
         if let Some(scientific_name) = critter.species.as_deref() {
             if let Ok(taxon) = crate::inaturalist::get_taxon_by_name(scientific_name).await {
-                if let Ok(group_name) = taxon.group_name(&config.critter_categories).await {
+                if let Ok(group_name) = taxon
+                    .group_name(&options.critter_categories_overrides())
+                    .await
+                {
                     println!(
                         "{} ({}): {}",
                         taxon.preferred_common_name.as_deref().unwrap_or(""),
