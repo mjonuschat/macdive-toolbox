@@ -11,6 +11,7 @@ pub(in crate::inaturalist) use api::*;
 pub use models::*;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+use std::hash::{Hash, Hasher};
 
 /// SQLx: Return type used for cache_taxa table
 #[derive(Debug, Serialize, Deserialize)]
@@ -21,7 +22,7 @@ pub struct CachedTaxon {
     pub taxon: Json<Taxon>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum TaxonGroupName {
     Unspecified,
     Custom(String),
@@ -41,6 +42,56 @@ pub enum TaxonGroupName {
     Genus(String),
 }
 
+impl PartialEq for TaxonGroupName {
+    fn eq(&self, other: &Self) -> bool {
+        use TaxonGroupName::*;
+
+        match (self, other) {
+            (Unspecified, Unspecified) => true,
+            (Custom(lhs), Custom(rhs)) => lhs.to_lowercase() == rhs.to_lowercase(),
+            (Phylum(lhs), Phylum(rhs)) => lhs.to_lowercase() == rhs.to_lowercase(),
+            (Subphylum(lhs), Subphylum(rhs)) => lhs.to_lowercase() == rhs.to_lowercase(),
+            (Class(lhs), Class(rhs)) => lhs.to_lowercase() == rhs.to_lowercase(),
+            (Subclass(lhs), Subclass(rhs)) => lhs.to_lowercase() == rhs.to_lowercase(),
+            (Infraclass(lhs), Infraclass(rhs)) => lhs.to_lowercase() == rhs.to_lowercase(),
+            (Superorder(lhs), Superorder(rhs)) => lhs.to_lowercase() == rhs.to_lowercase(),
+            (Order(lhs), Order(rhs)) => lhs.to_lowercase() == rhs.to_lowercase(),
+            (Suborder(lhs), Suborder(rhs)) => lhs.to_lowercase() == rhs.to_lowercase(),
+            (Infraorder(lhs), Infraorder(rhs)) => lhs.to_lowercase() == rhs.to_lowercase(),
+            (Parvorder(lhs), Parvorder(rhs)) => lhs.to_lowercase() == rhs.to_lowercase(),
+            (Superfamily(lhs), Superfamily(rhs)) => lhs.to_lowercase() == rhs.to_lowercase(),
+            (Family(lhs), Family(rhs)) => lhs.to_lowercase() == rhs.to_lowercase(),
+            (Subfamily(lhs), Subfamily(rhs)) => lhs.to_lowercase() == rhs.to_lowercase(),
+            (Genus(lhs), Genus(rhs)) => lhs.to_lowercase() == rhs.to_lowercase(),
+            (_, _) => false,
+        }
+    }
+}
+
+impl Hash for TaxonGroupName {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        use TaxonGroupName::*;
+
+        match self {
+            Unspecified => "".hash(state),
+            Custom(v) => v.hash(state),
+            Phylum(v) => v.hash(state),
+            Subphylum(v) => v.hash(state),
+            Class(v) => v.hash(state),
+            Subclass(v) => v.hash(state),
+            Infraclass(v) => v.hash(state),
+            Superorder(v) => v.hash(state),
+            Order(v) => v.hash(state),
+            Suborder(v) => v.hash(state),
+            Infraorder(v) => v.hash(state),
+            Parvorder(v) => v.hash(state),
+            Superfamily(v) => v.hash(state),
+            Family(v) => v.hash(state),
+            Subfamily(v) => v.hash(state),
+            Genus(v) => v.hash(state),
+        }
+    }
+}
 impl TaxonGroupName {
     fn normalize(name: &str) -> String {
         change_case::title_case(
@@ -52,19 +103,6 @@ impl TaxonGroupName {
                 .trim()
                 .trim_end_matches(','),
         )
-    }
-
-    pub(crate) fn ignore_common_name(
-        &self,
-        class: &str,
-        name: &str,
-        overrides: &CritterCategoryOverride,
-    ) -> bool {
-        overrides
-            .ignored_common_names
-            .get(class)
-            .map(|list| list.contains(&name.to_string()))
-            .unwrap_or(false)
     }
 
     pub fn prefer_higher_common_name(
@@ -137,9 +175,7 @@ impl TaxonCategoryName for Taxon {
                             continue;
                         }
                         if let Some(name) = ancestor.preferred_common_name {
-                            if !group.ignore_common_name("class", &name, overrides) {
-                                group = TaxonGroupName::Class(name);
-                            }
+                            group = TaxonGroupName::Class(name);
                         }
                     }
                     Some("subclass")
@@ -251,10 +287,6 @@ impl TaxonCategoryName for Taxon {
                             group = TaxonGroupName::Superfamily(name)
                         }
                     }
-                    // OVERRIDE: Superfamily("Box and Moon Crabs")
-                    // OVERRIDE: Superfamily("Cowries, Trivia, and Allies")
-                    // OVERRIDE: Infraorder("Spiny and Slipper Lobsters")
-                    // OVERRIDE: Infraorder("Coral and Glass Sponge Shrimps")
                     Some("family")
                         if matches!(
                             group,
@@ -291,8 +323,8 @@ impl TaxonCategoryName for Taxon {
                         }
                     }
                     Some("species") => {
-                        if let Some(v) = overrides.group_names.get(&group) {
-                            group = v.clone();
+                        if let Some(v) = overrides.group_names.get(&group.to_string()) {
+                            group = TaxonGroupName::Custom(v.to_owned())
                         }
                     }
                     Some(_) | None => {}

@@ -137,108 +137,90 @@ locations:
     locality: San Miguel Island
 critter_categories:
   group_names:
-    ? Class: "Sea Urchins, Sand Dollars, and Heart Urchins"
-    : Custom: Sea Urchins
-    ? Infraorder: Spiny and Slipper Lobsters
-    : Custom: Lobsters
-    ? Family: Reef Lobsters
-    : Custom: Lobsters
-    ? Class: Brittle Stars
-    : Custom: Sea Stars
-    ? Infraclass: Euthyneuran Gastropods
-    : Custom: Sea Slugs
-    ? Subclass: Sedentary and Tube-dwelling Bristleworms
-    : Custom: Tube Worms
-    ? Subclass: Caenogastropods
-    : Custom: Sea Snails
-    ? Class: Gastropods
-    : Custom: Sea Snails
-    ? Family: Bristle Worms
-    : Custom: Worms
-    ? Infraorder: Caridean Shrimps
-    : Custom: Shrimps
-    ? Infraorder: Coral and Glass Sponge Shrimps
-    : Custom: Shrimps
-    ? Order: Side-gilled sea slugs
-    : Custom: Sea Slugs
-    ? Order: Stony Corals
-    : Custom: Corals
-    ? Family: Coral Shrimps
-    : Custom: Shrimps
-    ? Family: Eared Seals
-    : Parvorder: Pinnipeds
-    ? Infraorder: Gebiidean Shrimps
-    : Custom: Shrimps
-    ? Phylum: Horseshoe Worms
-    : Custom: Worms
-    ? Family: Innkeeper Worms
-    : Custom: Worms
-    ? Phylum: Ribbon Worms
-    : Custom: Worms
-    ? Order: Soft Corals
-    : Custom: Corals
-    ? Suborder: Prawns
-    : Custom: Shrimps
-    ? Subclass: Tube-dwelling Anemones
-    : Custom: Anemones
-    ? Family: Bell Jellies
-    : Custom: Jellyfish
-    ? Phylum: Comb Jellies
-    : Custom: Jellyfish
-    ? Order: Corallimorphs
-    : Order: Sea Anemones
-  ignored_common_names:
-    class:
-      - Demosponges
-    infraorder:
-      - Cetaceans
+    "Caenogastropods": "Sea Snails"
+    "Euthyneuran Gastropods": "Sea Slugs"
+    "Side-Gilled Sea Slugs": "Sea Slugs"
+    "Gastropods": "Sea Snails"
+    "Brittle Stars": "Sea Stars"
+    "Eared Seals": "Pinnipeds"
+    "Seals": "Pinnipeds"
+    "Spiny and Slipper Lobsters": "Lobsters"
+    "Reef Lobsters": "Lobsters"
+    "Horseshoe Worms": "Worms"
+    "Innkeeper Worms": "Worms"
+    "Ribbon Worms": "Worms"
+    "Bristle Worms": "Worms"
+    "Caridean Shrimps": "Shrimps"
+    "Coral Shrimps": "Shrimps"
+    "Gebiidean Shrimps": "Shrimps"
+    "Prawns": "Shrimps"
+    "Bell Jellies": "Jellies"
+    "Comb Jellies": "Jellies"
+    "Corallimorphs": "Anemones"
+    "Sea Anemones": "Anemones"
+    "Tube-Dwelling Anemones": "Anemones"
+    "Soft Corals": "Corals"
+    "Stony Corals": "Corals"
+    "Sea Turtles": "Turtles"
+    "Sedentary and Tube-Dwelling Bristleworms": "Tube Worms"
   preferred_higher_ranks:
     class:
       - Phylum: Sponges
       - Phylum: green algae
       - Subphylum: Tunicates
+    subclass:
+      - Class: Chitons
+      - Class: True Jellies
+    infraclass:
+      - Class: Bivalves
+      - Subclass: Sea Urchins
+    superorder:
+      - Class: Sea Stars
+      - Infraclass: Sharks
+      - Infraclass: Euthyneuran Gastropods
     order:
+      - Phylum: Flatworms
       - Class: "Sea Urchins, Sand Dollars, and Heart Urchins"
       - Class: Sea Stars
       - Class: Brittle Stars
       - Class: Bivalves
       - Class: Birds
       - Class: Sea Cucumbers
+      - Class: True Jellies
+      - Subclass: Hydroids
+      - Subclass: Sea Urchins
       - Infraclass: Sharks
       - Infraclass: Rays
       - Infraclass: Barnacles
       - Superorder: Squids and Cuttlefishes
-      - Class: True Jellies
-      - Phylum: Flatworms
-      - Subclass: Hydroids
-      - Subclass: sea urchins
+    suborder:
+      - Order: Octopuses
+    superfamily:
+      - Subclass: Caenogastropods
+      - Infraclass: Euthyneuran Gastropods
+      - Order: Nudibranchs
+      - Order: Octopuses
+      - Order: Scallops and Allies
+      - Suborder: Prawns
+      - Infraorder: True Crabs
     family:
       - Superorder: Squids and Cuttlefishes
       - Order: Flatfishes
       - Order: True Eels
       - Order: Nudibranchs
       - Order: Sea Anemones
+      - Order: Flag-mouth Jellies
+      - Order: Soft Corals
+      - Order: Sea Pens
       - Suborder: Prawns
+      - Infraorder: Spiny and Slipper Lobsters
       - Infraorder: True Crabs
+      - Infraorder: Caridean Shrimps
       - Class: Sea Stars
       - Subclass: Mantis Shrimps
       - Subclass: Sedentary and Tube-dwelling Bristleworms
       - Subclass: Caenogastropods
       - Superfamily: Hermit Crabs
-      - Infraorder: Caridean Shrimps
-      - Order: Flag-mouth Jellies
-      - Order: Soft Corals
-      - Order: Sea Pens
-      - Infraorder: Spiny and Slipper Lobsters
-    superorder:
-      - Class: Sea Stars
-      - Infraclass: Sharks
-      - Infraclass: Euthyneuran Gastropods
-    subclass:
-      - Class: Chitons
-      - Class: True Jellies
-    suborder:
-      - Order: Octopuses
     subfamily:
       - Family: Cardinalfishes
       - Family: Pufferfishes
@@ -250,14 +232,3 @@ critter_categories:
       - Subfamily: Damselfishes
       - Subfamily: Groupers
       - Subfamily: Surgeonfishes and Tangs
-    superfamily:
-      - Subclass: Caenogastropods
-      - Infraclass: Euthyneuran Gastropods
-      - Order: Nudibranchs
-      - Order: Octopuses
-      - Order: Scallops and Allies
-      - Suborder: Prawns
-      - Infraorder: True Crabs
-    infraclass:
-      - Class: Bivalves
-      - Subclass: sea urchins

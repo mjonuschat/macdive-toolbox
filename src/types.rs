@@ -64,8 +64,7 @@ pub struct Overrides {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CritterCategoryOverride {
-    pub group_names: HashMap<TaxonGroupName, TaxonGroupName>,
-    pub ignored_common_names: HashMap<String, Vec<String>>,
+    pub group_names: HashMap<String, String>,
     pub preferred_higher_ranks: HashMap<String, Vec<TaxonGroupName>>,
 }
 
