@@ -34,6 +34,7 @@ pub enum TaxonGroupName {
     Order(String),
     Suborder(String),
     Infraorder(String),
+    Parvorder(String),
     Superfamily(String),
     Family(String),
     Subfamily(String),
@@ -93,6 +94,7 @@ impl Display for TaxonGroupName {
             TaxonGroupName::Order(name) => write!(f, "{}", Self::normalize(name)),
             TaxonGroupName::Suborder(name) => write!(f, "{}", Self::normalize(name)),
             TaxonGroupName::Infraorder(name) => write!(f, "{}", Self::normalize(name)),
+            TaxonGroupName::Parvorder(name) => write!(f, "{}", Self::normalize(name)),
             TaxonGroupName::Superfamily(name) => write!(f, "{}", Self::normalize(name)),
             TaxonGroupName::Family(name) => write!(f, "{}", Self::normalize(name)),
             TaxonGroupName::Subfamily(name) => write!(f, "{}", Self::normalize(name)),
@@ -192,6 +194,7 @@ impl TaxonCategoryName for Taxon {
                             group,
                             TaxonGroupName::Phylum(_)
                                 | TaxonGroupName::Class(_)
+                                | TaxonGroupName::Subclass(_)
                                 | TaxonGroupName::Infraclass(_)
                                 | TaxonGroupName::Superorder(_)
                         ) =>
@@ -257,6 +260,7 @@ impl TaxonCategoryName for Taxon {
                             group,
                             TaxonGroupName::Phylum(_)
                                 | TaxonGroupName::Order(_)
+                                | TaxonGroupName::Infraorder(_)
                                 | TaxonGroupName::Subclass(_)
                                 | TaxonGroupName::Superfamily(_)
                         ) =>

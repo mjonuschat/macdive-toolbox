@@ -151,7 +151,7 @@ critter_categories:
     : Custom: Tube Worms
     ? Subclass: Caenogastropods
     : Custom: Sea Snails
-    ? Subclass: Gastropods
+    ? Class: Gastropods
     : Custom: Sea Snails
     ? Family: Bristle Worms
     : Custom: Worms
@@ -163,6 +163,30 @@ critter_categories:
     : Custom: Sea Slugs
     ? Order: Stony Corals
     : Custom: Corals
+    ? Family: Coral Shrimps
+    : Custom: Shrimps
+    ? Family: Eared Seals
+    : Parvorder: Pinnipeds
+    ? Infraorder: Gebiidean Shrimps
+    : Custom: Shrimps
+    ? Phylum: Horseshoe Worms
+    : Custom: Worms
+    ? Family: Innkeeper Worms
+    : Custom: Worms
+    ? Phylum: Ribbon Worms
+    : Custom: Worms
+    ? Order: Soft Corals
+    : Custom: Corals
+    ? Suborder: Prawns
+    : Custom: Shrimps
+    ? Subclass: Tube-dwelling Anemones
+    : Custom: Anemones
+    ? Family: Bell Jellies
+    : Custom: Jellyfish
+    ? Phylum: Comb Jellies
+    : Custom: Jellyfish
+    ? Order: Corallimorphs
+    : Order: Sea Anemones
   ignored_common_names:
     class:
       - Demosponges
@@ -171,6 +195,7 @@ critter_categories:
   preferred_higher_ranks:
     class:
       - Phylum: Sponges
+      - Phylum: green algae
       - Subphylum: Tunicates
     order:
       - Class: "Sea Urchins, Sand Dollars, and Heart Urchins"
@@ -178,11 +203,15 @@ critter_categories:
       - Class: Brittle Stars
       - Class: Bivalves
       - Class: Birds
+      - Class: Sea Cucumbers
       - Infraclass: Sharks
       - Infraclass: Rays
       - Infraclass: Barnacles
-#      - Infraclass: Euthyneuran Gastropods
       - Superorder: Squids and Cuttlefishes
+      - Class: True Jellies
+      - Phylum: Flatworms
+      - Subclass: Hydroids
+      - Subclass: sea urchins
     family:
       - Superorder: Squids and Cuttlefishes
       - Order: Flatfishes
@@ -190,17 +219,24 @@ critter_categories:
       - Order: Nudibranchs
       - Order: Sea Anemones
       - Suborder: Prawns
+      - Infraorder: True Crabs
       - Class: Sea Stars
       - Subclass: Mantis Shrimps
       - Subclass: Sedentary and Tube-dwelling Bristleworms
       - Subclass: Caenogastropods
       - Superfamily: Hermit Crabs
+      - Infraorder: Caridean Shrimps
+      - Order: Flag-mouth Jellies
+      - Order: Soft Corals
+      - Order: Sea Pens
+      - Infraorder: Spiny and Slipper Lobsters
     superorder:
       - Class: Sea Stars
       - Infraclass: Sharks
       - Infraclass: Euthyneuran Gastropods
     subclass:
-      - Class: Sea Anemones and Corals
+      - Class: Chitons
+      - Class: True Jellies
     suborder:
       - Order: Octopuses
     subfamily:
@@ -213,6 +249,7 @@ critter_categories:
     genus:
       - Subfamily: Damselfishes
       - Subfamily: Groupers
+      - Subfamily: Surgeonfishes and Tangs
     superfamily:
       - Subclass: Caenogastropods
       - Infraclass: Euthyneuran Gastropods

@@ -110,6 +110,7 @@ async fn lookup_taxon_by_ids(ids: &[i32]) -> Result<Vec<Taxon>> {
 }
 
 async fn lookup_taxon_by_name(name: &str) -> Result<Taxon> {
+    // TODO: Debug logging
     let request = surf::post("https://api.inaturalist.org/v2/taxa/autocomplete")
         .header("X-HTTP-Method-Override", "GET")
         // .header("Authorization", API_TOKEN)

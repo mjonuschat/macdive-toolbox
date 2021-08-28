@@ -20,6 +20,7 @@ use arguments::Options;
 use console::{style, Emoji};
 use errors::ConversionError;
 use futures::StreamExt;
+use itertools::Itertools;
 use lightroom::MetadataPreset;
 use std::collections::HashMap;
 use surf::connect;
@@ -199,9 +200,9 @@ async fn critters(options: &Options) -> Result<()> {
             }
 
             // TODO: Guard with command line flag!
-            if changeset.has_changes() {
-                crate::macdive::update_critter(&changeset, &connection).await?;
-            }
+            // if changeset.has_changes() {
+            //     crate::macdive::update_critter(&changeset, &connection).await?;
+            // }
         }
     }
     Ok(())
@@ -227,6 +228,7 @@ async fn main() -> Result<()> {
         })
         .collect::<HashMap<_, _>>();
 
+    let mut assignments: HashMap<String, Vec<(Option<String>, Option<String>)>> = HashMap::new();
     for critter in critters {
         if let Some(scientific_name) = critter.species.as_deref() {
             if let Ok(taxon) = crate::inaturalist::get_taxon_by_name(scientific_name).await {
@@ -234,15 +236,18 @@ async fn main() -> Result<()> {
                     .group_name(&options.critter_categories_overrides())
                     .await
                 {
-                    println!(
-                        "{} ({}): {}",
-                        taxon.preferred_common_name.as_deref().unwrap_or(""),
-                        taxon.name.as_deref().unwrap_or(""),
-                        group_name
-                    )
+                    assignments
+                        .entry(group_name.to_string())
+                        .or_insert_with(Vec::new)
+                        .push((taxon.name, taxon.preferred_common_name));
                 }
             }
         }
+    }
+
+    match assignments.get("Corallimorphs") {
+        Some(v) => println!("{:#?}", v),
+        None => println!("{:#?}", assignments.keys().sorted()),
     }
     Ok(())
 }
