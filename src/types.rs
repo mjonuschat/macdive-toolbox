@@ -7,7 +7,7 @@ use std::str::FromStr;
 use google_maps::LatLng;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use rust_decimal_macros::dec;
-use serde_derive::Deserialize;
+use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -53,12 +53,12 @@ impl DecimalToDms for LatLng {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Overrides {
     pub locations: HashMap<String, LocationOverride>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct LocationOverride {
     pub area: Vec<(f32, f32)>,
     /// The full name should be expressed as a verbal name and not as a code

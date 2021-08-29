@@ -1,5 +1,6 @@
 // use anyhow::{bail, Context};
 use crate::types::{LocationOverride, Overrides};
+
 use anyhow::Context;
 use clap::{AppSettings, Clap, ValueHint};
 use std::collections::HashMap;
@@ -23,7 +24,7 @@ pub struct Options {
     lightroom: Option<PathBuf>,
     /// Path to the Location overrides file
     #[clap(short='o', long, parse(from_os_str), value_hint=ValueHint::FilePath)]
-    pub locations: Option<PathBuf>,
+    pub overrides: Option<PathBuf>,
     /// Google Maps API key for reverse geocoding
     #[clap(short, long, value_hint=ValueHint::Other)]
     pub api_key: Option<String>,
@@ -62,11 +63,11 @@ impl Options {
     }
 
     pub fn overrides(&self) -> anyhow::Result<Overrides> {
-        match &self.locations {
+        match &self.overrides {
             Some(path) => {
                 let c = std::fs::read_to_string(path)
                     .with_context(|| format!("Could not read file {}", &path.display()))?;
-                Ok(toml::from_str(&c)?)
+                Ok(serde_yaml::from_str(&c)?)
             }
             None => Ok(Overrides {
                 locations: HashMap::new(),
