@@ -208,13 +208,9 @@ async fn critters(options: &Options) -> Result<()> {
     Ok(())
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    let options = Options::parse();
+async fn critter_categories(options: &Options) -> Result<()> {
     let connection = macdive::establish_connection(&options.macdive_database()?).await?;
 
-    // export(&options).await?;
-    // critters(&options).await?;
     let critters = crate::macdive::critters(&connection).await?;
     let _categories = crate::macdive::critter_categories(&connection)
         .await?
@@ -245,9 +241,28 @@ async fn main() -> Result<()> {
         }
     }
 
-    match assignments.get("Corallimorphs") {
-        Some(v) => println!("{:#?}", v),
-        None => println!("{:#?}", assignments.keys().sorted()),
+    for key in assignments.keys().sorted() {
+        println!("## {}", key);
+        if let Some(critters) = assignments.get(key) {
+            for (name, common_name) in critters {
+                println!(
+                    "  {} ({})",
+                    name.as_deref().unwrap_or(""),
+                    common_name.as_deref().unwrap_or("")
+                )
+            }
+        }
     }
+
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let options = Options::parse();
+
+    // export(&options).await?;
+    // critters(&options).await?;
+    critter_categories(&options).await?;
     Ok(())
 }
