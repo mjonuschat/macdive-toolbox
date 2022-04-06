@@ -22,7 +22,8 @@ use errors::ConversionError;
 use futures::StreamExt;
 use itertools::Itertools;
 use lightroom::MetadataPreset;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::thread::current;
 use surf::connect;
 use uuid::Uuid;
 
@@ -212,7 +213,9 @@ async fn critter_categories(options: &Options) -> Result<()> {
     let connection = macdive::establish_connection(&options.macdive_database()?).await?;
 
     let critters = crate::macdive::critters(&connection).await?;
-    let _categories = crate::macdive::critter_categories(&connection)
+
+    // Categories that currently are in MacDive
+    let mut current_categories = crate::macdive::critter_categories(&connection)
         .await?
         .into_iter()
         .filter_map(|category| match category.name.as_deref() {
@@ -224,35 +227,163 @@ async fn critter_categories(options: &Options) -> Result<()> {
         })
         .collect::<HashMap<_, _>>();
 
-    let mut assignments: HashMap<String, Vec<(Option<String>, Option<String>)>> = HashMap::new();
+    let critter_groups: HashMap<String, TaxonGroupName> =
+        futures::stream::iter(critters.iter().filter_map(|c| c.species.clone()))
+            .filter_map(|scientific_name| async move {
+                if let Ok(taxon) = crate::inaturalist::get_taxon_by_name(&scientific_name).await {
+                    if let Ok(group_name) = taxon
+                        .group_name(&options.critter_categories_overrides())
+                        .await
+                    {
+                        return Some((scientific_name, group_name));
+                    }
+                } else {
+                    eprintln!("Lookup failed for {}", &scientific_name)
+                }
+
+                None
+            })
+            .collect()
+            .await;
+
+    let current_names: HashSet<String> = current_categories
+        .keys()
+        .map(|v| change_case::lower_case(v))
+        .collect();
+
+    let desired_names: HashSet<String> = critter_groups
+        .values()
+        .map(|v| change_case::lower_case(&v.to_string()))
+        .collect();
+
+    let mut extraneous_categories: Vec<String> = current_names
+        .difference(&desired_names)
+        .map(|v| v.to_owned())
+        .collect();
+
+    let mut category_index: HashMap<_, _> = current_categories
+        .iter()
+        .map(|(k, v)| (v.id, k.to_owned()))
+        .collect();
+
     for critter in critters {
-        if let Some(scientific_name) = critter.species.as_deref() {
-            if let Ok(taxon) = crate::inaturalist::get_taxon_by_name(scientific_name).await {
-                if let Ok(group_name) = taxon
-                    .group_name(&options.critter_categories_overrides())
-                    .await
-                {
-                    assignments
-                        .entry(group_name.to_string())
-                        .or_insert_with(Vec::new)
-                        .push((taxon.name, taxon.preferred_common_name));
+        if let Some(scientific_name) = &critter.species {
+            let current_category = &critter
+                .category
+                .map(|id| {
+                    category_index
+                        .get(&id)
+                        .and_then(|key| current_categories.get(key))
+                })
+                .flatten();
+            let desired_category = &critter_groups
+                .get(scientific_name)
+                .and_then(|v| current_categories.get(&change_case::lower_case(&v.to_string())));
+
+            match (current_category, desired_category) {
+                (Some(cc), Some(dc)) if cc.id != dc.id => {
+                    eprintln!(
+                        "Re-Assigning: {:?} ({:?}): {:?} => {:?}",
+                        &critter.name, &critter.species, &cc.name, &dc.name
+                    );
+                    // crate::macdive::update_critter(
+                    //     &CritterUpdate {
+                    //         id: critter.id,
+                    //         category: Some(dc.id),
+                    //         common_name: critter.name,
+                    //         ..Default::default()
+                    //     },
+                    //     &connection,
+                    // )
+                    // .await?;
+                }
+                (Some(_), Some(_)) => {
+                    // Old and new category are identical
+                }
+                (None, Some(dc)) => {
+                    eprintln!(
+                        "Assigning: {:?} ({:?}): --- => {:?}",
+                        &critter.name, &critter.species, &dc.name
+                    );
+                    // crate::macdive::update_critter(
+                    //     &CritterUpdate {
+                    //         id: critter.id,
+                    //         category: Some(dc.id),
+                    //         common_name: critter.name,
+                    //         ..Default::default()
+                    //     },
+                    //     &connection,
+                    // )
+                    // .await?;
+                }
+                (Some(cc), None) => match &critter_groups.get(scientific_name) {
+                    Some(new_category) => {
+                        let category = extraneous_categories
+                            .pop()
+                            .and_then(|key| current_categories.remove(&key));
+
+                        match category {
+                            Some(mut c) => {
+                                let old_name = c.name.clone();
+                                let new_name = new_category.to_string();
+                                c.name = Some(new_name.clone());
+                                let key = change_case::lower_case(&new_category.to_string());
+                                let id = c.id;
+
+                                current_categories.insert(key.clone(), c);
+                                category_index.insert(id, key);
+
+                                eprintln!(
+                                    "Renaming category {:?} => {:?}",
+                                    old_name,
+                                    new_category.to_string()
+                                );
+                                eprintln!(
+                                    "Re-Assigning: {:?} ({:?}): {:?} => {:?}",
+                                    &critter.name, &critter.species, &old_name, &new_name
+                                );
+
+                                // crate::macdive::update_critter_category(
+                                //     id,
+                                //     &change_case::title_case(&new_category.to_string()),
+                                //     &connection,
+                                // )
+                                // .await?;
+                                //
+                                // crate::macdive::update_critter(
+                                //     &CritterUpdate {
+                                //         id: critter.id,
+                                //         category: Some(id),
+                                //         common_name: critter.name,
+                                //         ..Default::default()
+                                //     },
+                                //     &connection,
+                                // )
+                                // .await?;
+                            }
+                            None => {
+                                eprintln!(
+                                    "Brand spanking new category needed: {}",
+                                    new_category.to_string()
+                                )
+                            }
+                        }
+                    }
+                    None => eprintln!(
+                        "This should not happen - no new category: {}",
+                        scientific_name
+                    ),
+                },
+                (None, None) => {
+                    let new_category = &critter_groups.get(scientific_name).unwrap();
+                    eprintln!("New category required [2]: {}", new_category);
                 }
             }
         }
     }
-
-    for key in assignments.keys().sorted() {
-        println!("## {}", key);
-        if let Some(critters) = assignments.get(key) {
-            for (name, common_name) in critters {
-                println!(
-                    "  {} ({})",
-                    name.as_deref().unwrap_or(""),
-                    common_name.as_deref().unwrap_or("")
-                )
-            }
-        }
-    }
+    // println!("Missing categories: {:#?}", &missing);
+    println!("Extraneous categories: {:#?}", &extraneous_categories);
+    // println!("Existing categories: {:#?}", &existing);
 
     Ok(())
 }

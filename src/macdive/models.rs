@@ -1,6 +1,6 @@
 use crate::macdive::types::NsDate;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Critter {
     pub id: i64,
     pub ent: Option<i64>,

@@ -86,25 +86,35 @@ pub async fn sites(connection: &ConnectionPool) -> Result<Vec<DiveSite>, MacDive
     Ok(results)
 }
 
+enum SqlParam {
+    Text(String),
+    Integer(i64),
+}
+
 pub async fn update_critter(
     changeset: &CritterUpdate,
     connection: &ConnectionPool,
 ) -> Result<(), MacDiveError> {
     let mut sql = String::from("UPDATE ZCRITTER SET Z_PK=?");
-    let mut params: Vec<String> = Vec::new();
+    let mut params: Vec<SqlParam> = Vec::new();
 
     if let Some(name) = &changeset.common_name {
         let name = format!("Review: {}", name);
 
         sql.push_str(", ZNAME=?");
-        params.push(name);
+        params.push(SqlParam::Text(name));
     }
 
     if let Some(name) = &changeset.scientific_name {
         let name = format!("Review: {}", name);
 
         sql.push_str(", ZSPECIES=?");
-        params.push(name);
+        params.push(SqlParam::Text(name));
+    }
+
+    if let Some(category) = &changeset.category {
+        sql.push_str(", ZRELATIONSHIPCRITTERTOCRITTERCATEGORY=?");
+        params.push(SqlParam::Integer(*category));
     }
 
     sql.push_str(" WHERE Z_PK=?");
@@ -112,11 +122,31 @@ pub async fn update_critter(
     let mut query = sqlx::query(&sql);
     query = query.bind(changeset.id);
     for p in params {
-        query = query.bind(p);
+        query = match p {
+            SqlParam::Integer(p) => query.bind(p),
+            SqlParam::Text(p) => query.bind(p),
+        }
     }
     query = query.bind(changeset.id);
 
     query.execute(connection).await?;
+
+    Ok(())
+}
+
+pub async fn update_critter_category(
+    id: i64,
+    name: &str,
+    connection: &ConnectionPool,
+) -> Result<(), MacDiveError> {
+    let name = format!("UPDATED: {}", name);
+    sqlx::query!(
+        r#"UPDATE ZCRITTERCATEGORY SET ZNAME=? WHERE Z_PK=?"#,
+        name,
+        id
+    )
+    .execute(connection)
+    .await?;
 
     Ok(())
 }
