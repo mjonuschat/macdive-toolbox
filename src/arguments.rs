@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use clap::{AppSettings, Clap, ValueHint};
+use clap::{AppSettings, ValueHint};
 
 use crate::errors::PathError;
 use crate::types::{CritterCategoryOverride, LocationOverride, Overrides};
@@ -10,8 +10,8 @@ use crate::types::{CritterCategoryOverride, LocationOverride, Overrides};
 static LIGHTROOM_DATA: &str = "Adobe/Lightroom/Metadata Presets/";
 static MACDIVE_DATA: &str = "MacDive/MacDive.sqlite";
 
-#[derive(Clap, Debug)]
-#[clap(author, about, version, name = "MacDive Dive Site Exporter", setting=AppSettings::ColorAuto, setting=AppSettings::ColoredHelp)]
+#[derive(clap::Parser, Debug)]
+#[clap(author, about, version, name = "MacDive Dive Site Exporter", color=AppSettings::ColorAuto, setting=AppSettings::ColoredHelp)]
 pub struct Options {
     /// Verbose mode (-v, -vv, -vvv, etc.)
     #[clap(short, long, parse(from_occurrences))]

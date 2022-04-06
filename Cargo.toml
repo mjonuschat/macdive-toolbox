@@ -13,7 +13,7 @@ async-trait = "0.1.50"
 celes = "1.0.6"
 change-case = "0.2.0"
 chrono = "0.4.19"
-clap = "3.0.0-beta.2"
+clap = { version = "3.0.0", features = [ "derive" ] }
 console = "0.14.1"
 dirs = "3.0.1"
 futures = "0.3.16"
