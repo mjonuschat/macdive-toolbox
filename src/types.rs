@@ -149,6 +149,13 @@ impl TryInto<DiveSite> for crate::macdive::models::DiveSite {
         let country = self
             .country
             .clone()
+            .map(|c| {
+                if c == String::from("Netherlands Antilles") {
+                    String::from("Bonaire")
+                } else {
+                    c
+                }
+            })
             .ok_or(ConversionError::MissingCountry)
             .and_then(|v| celes::Country::from_str(&v).map_err(ConversionError::UnknownCountry))?;
 
