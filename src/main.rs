@@ -15,7 +15,7 @@ mod types;
 
 use crate::inaturalist::{Taxon, TaxonCategoryName, TaxonGroupName};
 use crate::macdive::models::{Critter, CritterUpdate};
-use crate::types::{CritterCategoryOverride, Overrides};
+use crate::types::{CritterCategoryOverride, LocationOverride, Overrides};
 use arguments::{Cli, Commands, LightroomOptions};
 use console::{style, Emoji};
 use errors::ConversionError;
@@ -62,6 +62,7 @@ static FILE_FOLDER: Emoji<'_, '_> = Emoji("📂  ", "");
 async fn export_lightroom_metadata_presets(
     database: &PathBuf,
     options: &LightroomOptions,
+    overrides: &[LocationOverride],
 ) -> Result<()> {
     println!(
         "{} {}Locating existing metadata presets...",
@@ -106,7 +107,7 @@ async fn export_lightroom_metadata_presets(
             .map(|item| {
                 item.map_err(ConversionError::GeocodingError)
                     .and_then(|site| {
-                        geocode::apply_overrides(site, &options.location_overrides())
+                        geocode::apply_overrides(site, overrides)
                             .map_err(ConversionError::GeocodingError)
                     })
             })
@@ -132,7 +133,7 @@ async fn export_lightroom_metadata_presets(
     Ok(())
 }
 
-async fn critters(database: &PathBuf) -> Result<()> {
+async fn diff_critters(database: &PathBuf) -> Result<()> {
     let connection = macdive::establish_connection(database).await?;
     let critters = crate::macdive::critters(&connection).await?;
 
@@ -213,7 +214,10 @@ async fn critters(database: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-async fn critter_categories(database: &PathBuf, overrides: &CritterCategoryOverride) -> Result<()> {
+async fn diff_critter_categories(
+    database: &PathBuf,
+    overrides: &CritterCategoryOverride,
+) -> Result<()> {
     let connection = macdive::establish_connection(database).await?;
 
     let critters = crate::macdive::critters(&connection).await?;
@@ -394,12 +398,15 @@ async fn main() -> Result<()> {
     let args = Cli::parse();
     let database = args.macdive_database()?;
 
-    match args.command {
+    match &args.command {
         Commands::LightroomMetadata(options) => {
-            export_lightroom_metadata_presets(&database, &options).await?
+            export_lightroom_metadata_presets(&database, &options, &args.overrides()?.locations())
+                .await?
+        }
+        Commands::DiffCritters => diff_critters(&database).await?,
+        Commands::DiffCritterCategories => {
+            diff_critter_categories(&database, &args.overrides()?.critter_categories()).await?
         }
     }
-    // critters(&options).await?;
-    // critter_categories(&options).await?;
     Ok(())
 }

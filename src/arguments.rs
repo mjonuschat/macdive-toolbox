@@ -34,39 +34,18 @@ pub(crate) struct Cli {
     pub database: Option<PathBuf>,
     #[clap(subcommand)]
     pub(crate) command: Commands,
+    /// Path to the Location overrides file
+    #[clap(short='c', long, parse(from_os_str), value_hint=ValueHint::FilePath)]
+    config: Option<PathBuf>,
 }
 
 impl Cli {
     pub fn macdive_database(&self) -> Result<PathBuf, PathError> {
         resolve_path(&self.database, MACDIVE_DATA)
     }
-}
 
-#[derive(clap::Subcommand, Debug)]
-pub(crate) enum Commands {
-    LightroomMetadata(LightroomOptions),
-}
-
-#[derive(Debug, clap::Args)]
-#[clap(args_conflicts_with_subcommands = true)]
-pub(crate) struct LightroomOptions {
-    /// Path to the Lightroom Settings directory
-    #[clap(short, long, parse(from_os_str), value_hint=ValueHint::DirPath)]
-    lightroom: Option<PathBuf>,
-    /// Path to the Location overrides file
-    #[clap(short='o', long, parse(from_os_str), value_hint=ValueHint::FilePath)]
-    overrides: Option<PathBuf>,
-    /// Google Maps API key for reverse geocoding
-    #[clap(short, long, value_hint=ValueHint::Other)]
-    pub(crate) api_key: Option<String>,
-    /// Force export and overwrite all existing files
-    #[clap(short, long)]
-    pub(crate) force: bool,
-}
-
-impl LightroomOptions {
     pub fn overrides(&self) -> anyhow::Result<Overrides> {
-        match &self.overrides {
+        match &self.config {
             Some(path) => {
                 let c = std::fs::read_to_string(path)
                     .with_context(|| format!("Could not read file {}", &path.display()))?;
@@ -78,19 +57,30 @@ impl LightroomOptions {
             }),
         }
     }
+}
 
-    pub fn location_overrides(&self) -> Vec<LocationOverride> {
-        self.overrides()
-            .map(|v| v.locations.iter().map(|(_, v)| v.clone()).collect())
-            .unwrap_or_else(|_| Vec::new())
-    }
+#[derive(clap::Subcommand, Debug)]
+pub(crate) enum Commands {
+    LightroomMetadata(LightroomOptions),
+    DiffCritters,
+    DiffCritterCategories,
+}
 
-    pub fn critter_categories_overrides(&self) -> CritterCategoryOverride {
-        self.overrides()
-            .map(|v| v.critter_categories)
-            .unwrap_or_else(|_| CritterCategoryOverride::default())
-    }
+#[derive(Debug, clap::Args)]
+#[clap(args_conflicts_with_subcommands = true)]
+pub(crate) struct LightroomOptions {
+    /// Path to the Lightroom Settings directory
+    #[clap(short, long, parse(from_os_str), value_hint=ValueHint::DirPath)]
+    lightroom: Option<PathBuf>,
+    /// Google Maps API key for reverse geocoding
+    #[clap(short, long, value_hint=ValueHint::Other)]
+    pub(crate) api_key: Option<String>,
+    /// Force export and overwrite all existing files
+    #[clap(short, long)]
+    pub(crate) force: bool,
+}
 
+impl LightroomOptions {
     pub fn lightroom_metadata(&self) -> Result<PathBuf, PathError> {
         resolve_path(&self.lightroom, LIGHTROOM_DATA)
     }

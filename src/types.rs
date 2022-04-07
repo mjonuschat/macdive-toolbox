@@ -62,6 +62,15 @@ pub struct Overrides {
     pub critter_categories: CritterCategoryOverride,
 }
 
+impl Overrides {
+    pub fn locations(&self) -> Vec<LocationOverride> {
+        self.locations.values().cloned().collect()
+    }
+
+    pub fn critter_categories(&self) -> &CritterCategoryOverride {
+        &self.critter_categories
+    }
+}
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CritterCategoryOverride {
     pub group_names: HashMap<String, String>,
