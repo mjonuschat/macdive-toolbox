@@ -7,7 +7,7 @@ use nonzero_ext::nonzero;
 use once_cell::sync::Lazy;
 
 mod helpers;
-mod types;
+pub(crate) mod types;
 
 pub use helpers::*;
 pub use types::*;
