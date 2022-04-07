@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use clap::{AppSettings, ColorChoice, ValueHint};
+use clap::{ColorChoice, ValueHint};
 
 use crate::errors::PathError;
-use crate::types::{CritterCategoryOverride, LocationOverride, Overrides};
+use crate::types::{CritterCategoryOverride, Overrides};
 
 static LIGHTROOM_DATA: &str = "Adobe/Lightroom/Metadata Presets/";
 static MACDIVE_DATA: &str = "MacDive/MacDive.sqlite";
@@ -24,7 +24,7 @@ fn resolve_path(path: &Option<PathBuf>, data_directory: &str) -> Result<PathBuf,
 }
 
 #[derive(clap::Parser, Debug)]
-#[clap(author, about, version, name = "MacDive Dive Site Exporter", color=ColorChoice::Auto, setting=AppSettings::ColoredHelp)]
+#[clap(author, about, version, name = "MacDive Dive Site Exporter", color=ColorChoice::Auto)]
 pub(crate) struct Cli {
     /// Verbose mode (-v, -vv, -vvv, etc.)
     #[clap(short, long, parse(from_occurrences))]

@@ -33,6 +33,7 @@ pub struct CritterUpdate {
 }
 
 impl CritterUpdate {
+    #[allow(dead_code)]
     pub fn has_changes(&self) -> bool {
         self.category.is_some() || self.common_name.is_some() || self.scientific_name.is_some()
     }

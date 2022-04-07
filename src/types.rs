@@ -12,7 +12,6 @@ use uuid::Uuid;
 
 use crate::errors::{ConversionError, GeocodingError};
 use crate::inaturalist::TaxonGroupName;
-use crate::macdive::models::Critter;
 
 pub trait DecimalToDms {
     fn to_dms(&self) -> Result<String, GeocodingError>;
@@ -159,7 +158,7 @@ impl TryInto<DiveSite> for crate::macdive::models::DiveSite {
             .country
             .clone()
             .map(|c| {
-                if c == String::from("Netherlands Antilles") {
+                if c == *"Netherlands Antilles" {
                     String::from("Bonaire")
                 } else {
                     c

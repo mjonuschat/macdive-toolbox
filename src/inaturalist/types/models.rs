@@ -1,5 +1,3 @@
-use crate::inaturalist::TaxonCategoryName;
-
 use serde::{Deserialize, Serialize};
 
 /// iNaturalist API v2 Schema

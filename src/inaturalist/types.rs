@@ -9,7 +9,6 @@ use crate::inaturalist::get_taxon_by_id;
 use crate::types::CritterCategoryOverride;
 pub(in crate::inaturalist) use api::*;
 pub use models::*;
-use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 

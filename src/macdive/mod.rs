@@ -91,6 +91,7 @@ enum SqlParam {
     Integer(i64),
 }
 
+#[allow(dead_code)]
 pub async fn update_critter(
     changeset: &CritterUpdate,
     connection: &ConnectionPool,
@@ -134,6 +135,7 @@ pub async fn update_critter(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub async fn update_critter_category(
     id: i64,
     name: &str,

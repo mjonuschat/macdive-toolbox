@@ -13,20 +13,16 @@ mod lightroom;
 mod macdive;
 mod types;
 
-use crate::inaturalist::{Taxon, TaxonCategoryName, TaxonGroupName};
-use crate::macdive::models::{Critter, CritterUpdate};
-use crate::types::{CritterCategoryOverride, LocationOverride, Overrides};
+use crate::inaturalist::{TaxonCategoryName, TaxonGroupName};
+use crate::macdive::models::CritterUpdate;
+use crate::types::{CritterCategoryOverride, LocationOverride};
 use arguments::{Cli, Commands, LightroomOptions};
 use console::{style, Emoji};
 use errors::ConversionError;
 use futures::StreamExt;
-use itertools::Itertools;
 use lightroom::MetadataPreset;
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
-use std::thread::current;
-use surf::connect;
-use uuid::Uuid;
+use std::path::Path;
 
 fn print_summary(presets: &[MetadataPreset]) {
     let mut table = Table::new();
@@ -60,7 +56,7 @@ static SATELLITE: Emoji<'_, '_> = Emoji("🛰️   ", "");
 static FILE_FOLDER: Emoji<'_, '_> = Emoji("📂  ", "");
 
 async fn export_lightroom_metadata_presets(
-    database: &PathBuf,
+    database: &Path,
     options: &LightroomOptions,
     overrides: &[LocationOverride],
 ) -> Result<()> {
@@ -133,7 +129,7 @@ async fn export_lightroom_metadata_presets(
     Ok(())
 }
 
-async fn diff_critters(database: &PathBuf) -> Result<()> {
+async fn diff_critters(database: &Path) -> Result<()> {
     let connection = macdive::establish_connection(database).await?;
     let critters = crate::macdive::critters(&connection).await?;
 
@@ -215,7 +211,7 @@ async fn diff_critters(database: &PathBuf) -> Result<()> {
 }
 
 async fn diff_critter_categories(
-    database: &PathBuf,
+    database: &Path,
     overrides: &CritterCategoryOverride,
 ) -> Result<()> {
     let connection = macdive::establish_connection(database).await?;
@@ -273,14 +269,11 @@ async fn diff_critter_categories(
 
     for critter in critters {
         if let Some(scientific_name) = &critter.species {
-            let current_category = &critter
-                .category
-                .map(|id| {
-                    category_index
-                        .get(&id)
-                        .and_then(|key| current_categories.get(key))
-                })
-                .flatten();
+            let current_category = &critter.category.and_then(|id| {
+                category_index
+                    .get(&id)
+                    .and_then(|key| current_categories.get(key))
+            });
             let desired_category = &critter_groups
                 .get(scientific_name)
                 .and_then(|v| current_categories.get(&change_case::lower_case(&v.to_string())));
@@ -321,7 +314,7 @@ async fn diff_critter_categories(
                     // )
                     // .await?;
                 }
-                (Some(cc), None) => match &critter_groups.get(scientific_name) {
+                (Some(_cc), None) => match &critter_groups.get(scientific_name) {
                     Some(new_category) => {
                         let category = extraneous_categories
                             .pop()
@@ -367,10 +360,7 @@ async fn diff_critter_categories(
                                 // .await?;
                             }
                             None => {
-                                eprintln!(
-                                    "Brand spanking new category needed: {}",
-                                    new_category.to_string()
-                                )
+                                eprintln!("Brand spanking new category needed: {}", new_category)
                             }
                         }
                     }
@@ -400,12 +390,12 @@ async fn main() -> Result<()> {
 
     match &args.command {
         Commands::LightroomMetadata(options) => {
-            export_lightroom_metadata_presets(&database, &options, &args.overrides()?.locations())
+            export_lightroom_metadata_presets(&database, options, &args.overrides()?.locations())
                 .await?
         }
         Commands::DiffCritters => diff_critters(&database).await?,
         Commands::DiffCritterCategories => {
-            diff_critter_categories(&database, &args.overrides()?.critter_categories()).await?
+            diff_critter_categories(&database, args.overrides()?.critter_categories()).await?
         }
     }
     Ok(())
