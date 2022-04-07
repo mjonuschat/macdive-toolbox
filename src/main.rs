@@ -16,13 +16,14 @@ mod types;
 use crate::inaturalist::{Taxon, TaxonCategoryName, TaxonGroupName};
 use crate::macdive::models::{Critter, CritterUpdate};
 use crate::types::{CritterCategoryOverride, Overrides};
-use arguments::Options;
+use arguments::{Cli, Commands, LightroomOptions};
 use console::{style, Emoji};
 use errors::ConversionError;
 use futures::StreamExt;
 use itertools::Itertools;
 use lightroom::MetadataPreset;
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::thread::current;
 use surf::connect;
 use uuid::Uuid;
@@ -58,7 +59,10 @@ static DIVING_MASK: Emoji<'_, '_> = Emoji("🤿️  ", "");
 static SATELLITE: Emoji<'_, '_> = Emoji("🛰️   ", "");
 static FILE_FOLDER: Emoji<'_, '_> = Emoji("📂  ", "");
 
-async fn export(options: &Options) -> Result<()> {
+async fn export_lightroom_metadata_presets(
+    database: &PathBuf,
+    options: &LightroomOptions,
+) -> Result<()> {
     println!(
         "{} {}Locating existing metadata presets...",
         style("[1/4]").bold().dim(),
@@ -71,7 +75,7 @@ async fn export(options: &Options) -> Result<()> {
         style("[2/4]").bold().dim(),
         DIVING_MASK
     );
-    let connection = macdive::establish_connection(&options.macdive_database()?).await?;
+    let connection = macdive::establish_connection(database).await?;
     let sites = macdive::sites(&connection)
         .await?
         .into_iter()
@@ -128,8 +132,8 @@ async fn export(options: &Options) -> Result<()> {
     Ok(())
 }
 
-async fn critters(options: &Options) -> Result<()> {
-    let connection = macdive::establish_connection(&options.macdive_database()?).await?;
+async fn critters(database: &PathBuf) -> Result<()> {
+    let connection = macdive::establish_connection(database).await?;
     let critters = crate::macdive::critters(&connection).await?;
 
     let species = critters
@@ -209,8 +213,8 @@ async fn critters(options: &Options) -> Result<()> {
     Ok(())
 }
 
-async fn critter_categories(options: &Options) -> Result<()> {
-    let connection = macdive::establish_connection(&options.macdive_database()?).await?;
+async fn critter_categories(database: &PathBuf, overrides: &CritterCategoryOverride) -> Result<()> {
+    let connection = macdive::establish_connection(database).await?;
 
     let critters = crate::macdive::critters(&connection).await?;
 
@@ -231,10 +235,7 @@ async fn critter_categories(options: &Options) -> Result<()> {
         futures::stream::iter(critters.iter().filter_map(|c| c.species.clone()))
             .filter_map(|scientific_name| async move {
                 if let Ok(taxon) = crate::inaturalist::get_taxon_by_name(&scientific_name).await {
-                    if let Ok(group_name) = taxon
-                        .group_name(&options.critter_categories_overrides())
-                        .await
-                    {
+                    if let Ok(group_name) = taxon.group_name(overrides).await {
                         return Some((scientific_name, group_name));
                     }
                 } else {
@@ -390,10 +391,15 @@ async fn critter_categories(options: &Options) -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let options = Options::parse();
+    let args = Cli::parse();
+    let database = args.macdive_database()?;
 
-    // export(&options).await?;
+    match args.command {
+        Commands::LightroomMetadata(options) => {
+            export_lightroom_metadata_presets(&database, &options).await?
+        }
+    }
     // critters(&options).await?;
-    critter_categories(&options).await?;
+    // critter_categories(&options).await?;
     Ok(())
 }
