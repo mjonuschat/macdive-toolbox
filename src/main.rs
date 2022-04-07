@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
+use comfy_table::*;
 use indicatif::ProgressBar;
-use prettytable::{Cell, Row, Table};
 
 use std::convert::TryInto;
 
@@ -26,28 +26,30 @@ use std::path::Path;
 
 fn print_summary(presets: &[MetadataPreset]) {
     let mut table = Table::new();
-    table.set_format(*prettytable::format::consts::FORMAT_NO_LINESEP_WITH_TITLE);
-    table.set_titles(Row::new(vec![
-        Cell::new("Site").style_spec("b"),
-        Cell::new("City").style_spec("b"),
-        Cell::new("Region").style_spec("b"),
-        Cell::new("State").style_spec("b"),
-        Cell::new("Country").style_spec("b"),
-        Cell::new("GPS").style_spec("b"),
-    ]));
+    table
+        .load_preset("││──╞═╪╡┆    ┬┴┌┐└┘")
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_header(vec![
+            Cell::new("Site").add_attribute(Attribute::Bold),
+            Cell::new("City").add_attribute(Attribute::Bold),
+            Cell::new("Region").add_attribute(Attribute::Bold),
+            Cell::new("State").add_attribute(Attribute::Bold),
+            Cell::new("Country").add_attribute(Attribute::Bold),
+            Cell::new("GPS").add_attribute(Attribute::Bold),
+        ]);
 
     for site in presets {
-        table.add_row(Row::new(vec![
+        table.add_row(vec![
             Cell::new(&site.location),
             Cell::new(&site.city),
             Cell::new(&site.region),
             Cell::new(&site.state),
             Cell::new(&site.country),
             Cell::new(&site.gps),
-        ]));
+        ]);
     }
 
-    table.printstd();
+    println!("{table}");
 }
 
 static LOOKING_GLASS: Emoji<'_, '_> = Emoji("🔍  ", "");
