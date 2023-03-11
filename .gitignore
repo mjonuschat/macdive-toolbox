@@ -11,6 +11,7 @@ target/
 /db/*.sqlite3
 /db/*.sqlite3-journal
 /db/*.sqlite3-[0-9]*
+/db/Cloud Cache/
 
 # Ignore all logfiles and tempfiles.
 /log/*

@@ -3,16 +3,16 @@ use crate::types::{DiveSite, LocationOverride};
 
 use std::convert::TryInto;
 
-use geo::{contains::Contains, Coordinate};
+use geo::{contains::Contains, Coord};
 use google_maps::{ClientSettings, LatLng, PlaceType};
 
 fn find_override(
-    latitude: f32,
-    longitude: f32,
+    latitude: f64,
+    longitude: f64,
     overrides: &[LocationOverride],
 ) -> Option<&LocationOverride> {
     overrides.iter().find(|location| {
-        location.polygon().contains(&Coordinate {
+        location.polygon().contains(&Coord {
             x: longitude,
             y: latitude,
         })

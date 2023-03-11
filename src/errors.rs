@@ -9,7 +9,7 @@ pub enum ConversionError {
     #[error("The MacDive dive site is missing country information")]
     MissingCountry,
     #[error("The MacDive dive site is using an unknown country name")]
-    UnknownCountry(String),
+    UnknownCountry(&'static str),
     #[error("The MacDive dive site is missing latitude information")]
     MissingLatitude,
     #[error("The MacDive dive site is missing longitude information")]

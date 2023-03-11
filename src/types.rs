@@ -78,7 +78,7 @@ pub struct CritterCategoryOverride {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct LocationOverride {
-    pub area: Vec<(f32, f32)>,
+    pub area: Vec<(f64, f64)>,
     /// The full name should be expressed as a verbal name and not as a code
     pub country: Option<String>,
     /// ISO country code of the location where the image was created
@@ -92,7 +92,7 @@ pub struct LocationOverride {
 }
 
 impl LocationOverride {
-    pub fn polygon(&self) -> geo::Polygon<f32> {
+    pub fn polygon(&self) -> geo::Polygon<f64> {
         geo::Polygon::new(geo::LineString::from(self.area.clone()), vec![])
     }
 }
@@ -127,9 +127,9 @@ pub struct DiveSite {
     /// This sublocation name should be filled with the common name of the dive site.
     pub name: String,
     /// Latitude of a WGS84 based position of this Location
-    pub latitude: f32,
+    pub latitude: f64,
     /// Longitude of a WGS84 based position of this Location
-    pub longitude: f32,
+    pub longitude: f64,
     /// Altitude in meters of a WGS84 based position of this Location
     pub altitude: f32,
     /// The name of the bod of water where the image was created.
@@ -142,11 +142,9 @@ impl TryFrom<DiveSite> for LatLng {
     type Error = GeocodingError;
 
     fn try_from(site: DiveSite) -> Result<Self, Self::Error> {
-        LatLng::try_from(
-            Decimal::from_f32(site.latitude).ok_or(GeocodingError::InvalidLatitude)?,
-            Decimal::from_f32(site.longitude).ok_or(GeocodingError::InvalidLongitude)?,
-        )
-        .map_err(|_e| GeocodingError::InvalidGps)
+        let lat = Decimal::from_f64(site.latitude).ok_or(GeocodingError::InvalidLatitude)?;
+        let lng = Decimal::from_f64(site.longitude).ok_or(GeocodingError::InvalidLongitude)?;
+        Ok(LatLng { lat, lng })
     }
 }
 
@@ -175,7 +173,7 @@ impl TryInto<DiveSite> for crate::macdive::models::DiveSite {
                     Uuid::parse_str(&v.to_lowercase()).map_err(ConversionError::InvalidUuid)
                 })?,
             country: self.country.ok_or(ConversionError::MissingCountry)?,
-            iso_country_code: country.alpha2,
+            iso_country_code: country.alpha2.to_string(),
             state: None,
             region: None,
             locality: None,

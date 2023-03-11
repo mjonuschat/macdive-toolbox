@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use clap::{ColorChoice, ValueHint};
+use clap::{ArgAction, ColorChoice, ValueHint};
 
 use crate::errors::PathError;
 use crate::types::{CritterCategoryOverride, Overrides};
@@ -27,15 +27,15 @@ fn resolve_path(path: &Option<PathBuf>, data_directory: &str) -> Result<PathBuf,
 #[clap(author, about, version, name = "MacDive Dive Site Exporter", color=ColorChoice::Auto)]
 pub(crate) struct Cli {
     /// Verbose mode (-v, -vv, -vvv, etc.)
-    #[clap(short, long, parse(from_occurrences))]
+    #[clap(short, long, action=ArgAction::Count)]
     pub verbose: u8,
     /// Path to the MacDive database file
-    #[clap(short, long, parse(from_os_str), value_hint=ValueHint::FilePath)]
+    #[clap(short, long, value_hint=ValueHint::FilePath)]
     pub database: Option<PathBuf>,
     #[clap(subcommand)]
     pub(crate) command: Commands,
     /// Path to the Location overrides file
-    #[clap(short='c', long, parse(from_os_str), value_hint=ValueHint::FilePath)]
+    #[clap(short='c', long, value_hint=ValueHint::FilePath)]
     config: Option<PathBuf>,
 }
 
@@ -70,7 +70,7 @@ pub(crate) enum Commands {
 #[clap(args_conflicts_with_subcommands = true)]
 pub(crate) struct LightroomOptions {
     /// Path to the Lightroom Settings directory
-    #[clap(short, long, parse(from_os_str), value_hint=ValueHint::DirPath)]
+    #[clap(short, long, value_hint=ValueHint::DirPath)]
     lightroom: Option<PathBuf>,
     /// Google Maps API key for reverse geocoding
     #[clap(short, long, value_hint=ValueHint::Other)]

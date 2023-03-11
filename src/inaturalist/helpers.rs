@@ -162,7 +162,7 @@ pub async fn get_taxon_by_ids(ids: &[i32]) -> Result<Vec<Taxon>> {
         .filter_map(|v| taxon_cache.get(v.to_le_bytes()).ok())
         .filter_map(|v| {
             v.map(|v| {
-                let result: Result<Taxon> = rmp_serde::from_read_ref(&v).map_err(|e| e.into());
+                let result: Result<Taxon> = rmp_serde::from_slice(&v).map_err(|e| e.into());
                 result
             })
         })
@@ -175,7 +175,7 @@ pub async fn get_taxon_by_id(id: i32) -> Result<Taxon> {
     let taxon_cache = INATURALIST_CACHE.open_tree(INAT_TAXON_CACHE_TREE)?;
 
     match taxon_cache.get(id.to_le_bytes())? {
-        Some(ref buf) => rmp_serde::from_read_ref(buf).map_err(|e| e.into()),
+        Some(ref buf) => rmp_serde::from_slice(buf).map_err(|e| e.into()),
         None => {
             let taxon = lookup_taxon_by_id(id).await?;
             cache_taxon(&taxon, None)?;
@@ -193,7 +193,7 @@ pub async fn get_taxon_by_name(scientific_name: &str) -> Result<Taxon> {
         Some(taxon_key) => {
             let buf = taxon_cache.get(taxon_key)?;
             match buf {
-                Some(ref buf) => rmp_serde::from_read_ref(buf)?,
+                Some(ref buf) => rmp_serde::from_slice(buf)?,
                 None => None,
             }
         }

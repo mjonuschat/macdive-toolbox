@@ -12,8 +12,11 @@ use once_cell::sync::Lazy;
 #[sqlx(transparent)]
 pub struct NsDate(f64);
 
-static NSDATE_EPOCH: Lazy<NaiveDateTime> =
-    Lazy::new(|| NaiveDate::from_ymd(2001, 1, 1).and_hms(0, 0, 0));
+static NSDATE_EPOCH: Lazy<NaiveDateTime> = Lazy::new(|| {
+    NaiveDate::from_ymd_opt(2001, 1, 1)
+        .and_then(|date| date.and_hms_opt(0, 0, 0))
+        .expect("Unix epoch should be a valid date/time")
+});
 
 impl From<NsDate> for NaiveDateTime {
     fn from(value: NsDate) -> Self {
