@@ -19,7 +19,17 @@ pub async fn diff_critters(database: &Path) -> anyhow::Result<()> {
 
     for critter in critters {
         if let Some(scientific_name) = critter.species.as_deref() {
-            let taxon = crate::inaturalist::get_taxon_by_name(scientific_name).await?;
+            tracing::trace!("Looking up {scientific_name} on iNaturalist");
+            let taxon = match crate::inaturalist::get_taxon_by_name(scientific_name).await {
+                Ok(v) => v,
+                Err(e) => {
+                    tracing::warn!(
+                        scientific_name = scientific_name,
+                        "Failed to retrieve taxon: {e}"
+                    );
+                    continue;
+                }
+            };
 
             let current_name = critter
                 .name
@@ -116,7 +126,10 @@ pub async fn diff_critter_categories(
                         return Some((scientific_name, group_name));
                     }
                 } else {
-                    eprintln!("Lookup failed for {}", &scientific_name)
+                    tracing::error!(
+                        scientific_name = scientific_name.as_str(),
+                        "Taxon lookup failed"
+                    )
                 }
 
                 None
@@ -157,6 +170,7 @@ pub async fn diff_critter_categories(
 
             match (current_category, desired_category) {
                 (Some(cc), Some(dc)) if cc.id != dc.id => {
+                    // TODO: Delta
                     eprintln!(
                         "Re-Assigning: {:?} ({:?}): {:?} => {:?}",
                         &critter.name, &critter.species, &cc.name, &dc.name

@@ -1,5 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
+use tracing::Level;
+use tracing_subscriber::filter::{LevelFilter, Targets};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::Layer;
 
 mod arguments;
 mod commands;
@@ -14,6 +19,20 @@ use arguments::{Cli, Commands};
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Logging
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::fmt::layer()
+                .compact()
+                .with_filter(Targets::default().with_default(Level::DEBUG)),
+        )
+        .with(
+            Targets::default()
+                .with_target("macdive_exporter", Level::TRACE)
+                .with_target("surf", LevelFilter::OFF),
+        )
+        .init();
+
     let args = Cli::parse();
     let database = args.macdive_database()?;
 

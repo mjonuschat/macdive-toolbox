@@ -25,7 +25,7 @@ fn cache_taxon(taxon: &Taxon, original_name: Option<&str>) -> Result<()> {
     )?;
 
     taxon_cache.insert(taxon_id, rmp_serde::encode::to_vec(&taxon)?)?;
-    name_cache.insert(&taxon_name, &taxon_id)?;
+    name_cache.insert(taxon_name, &taxon_id)?;
 
     if let Some(name) = original_name {
         name_cache.insert(name.trim().to_lowercase(), &taxon_id)?;
@@ -49,8 +49,6 @@ pub async fn cache_species(species: &[&str]) -> Result<Vec<String>> {
             if let Some(ids) = taxon.ancestor_ids {
                 ancestor_ids.extend(&ids);
             }
-        } else {
-            eprintln!("No taxon found for {}", name)
         }
     }
     let ancestor_ids: Vec<i32> = ancestor_ids.into_iter().collect();
@@ -66,7 +64,6 @@ async fn lookup_taxon(request: RequestBuilder) -> Result<Vec<Taxon>> {
             Duration::from_millis(250),
         ))
         .await;
-
     let mut res = request
         .await
         .map_err(|e| anyhow::anyhow!("Error talking to server: {}", e))?;
@@ -74,7 +71,7 @@ async fn lookup_taxon(request: RequestBuilder) -> Result<Vec<Taxon>> {
     let taxa: ResultsTaxa = res
         .body_json()
         .await
-        .map_err(|e| anyhow::anyhow!("Error decoding json: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Error decoding json: {e}"))?;
 
     Ok(taxa.results)
 }
@@ -84,7 +81,7 @@ async fn lookup_taxon_by_id(id: i32) -> Result<Taxon> {
         .await?
         .first()
         .cloned()
-        .ok_or_else(|| anyhow::anyhow!("No taxon found: {}", id))
+        .ok_or_else(|| anyhow::anyhow!("No taxon found for id: {}", id))
 }
 
 async fn lookup_taxon_by_ids(ids: &[i32]) -> Result<Vec<Taxon>> {
@@ -125,7 +122,7 @@ async fn lookup_taxon_by_name(name: &str) -> Result<Taxon> {
         .await?
         .first()
         .cloned()
-        .ok_or_else(|| anyhow::anyhow!("No taxon found: {}", name))
+        .ok_or_else(|| anyhow::anyhow!("No taxon found for name: {}", name))
 }
 
 pub async fn get_taxon_by_ids(ids: &[i32]) -> Result<Vec<Taxon>> {
@@ -139,7 +136,7 @@ pub async fn get_taxon_by_ids(ids: &[i32]) -> Result<Vec<Taxon>> {
             Ok(true) => Some(*id),
             Ok(false) => None,
             Err(e) => {
-                eprintln!("Error looking up id {} in iNaturalist cache: {}", id, e);
+                tracing::error!(id = id, "Error during iNaturalist cache lookup: {e}");
                 None
             }
         })
@@ -148,7 +145,7 @@ pub async fn get_taxon_by_ids(ids: &[i32]) -> Result<Vec<Taxon>> {
     let missing_ids: Vec<_> = wanted_ids.difference(&cache_ids).copied().collect();
 
     if !missing_ids.is_empty() {
-        for chunk in &missing_ids.iter().chunks(50) {
+        for chunk in &missing_ids.iter().chunks(25) {
             let ids: Vec<i32> = chunk.copied().collect();
             let taxa = lookup_taxon_by_ids(&ids).await?;
             for taxon in taxa {
