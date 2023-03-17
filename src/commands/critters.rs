@@ -2,7 +2,7 @@ use crate::arguments::{MacdiveImportFormat, PrepareImportOptions};
 use crate::inaturalist::{get_taxon_by_name, Taxon, TaxonCategoryName, TaxonGroupName};
 use crate::macdive;
 use crate::macdive::models::CritterUpdate;
-use crate::types::CritterCategoryOverride;
+use crate::types::CritterCategoryConfig;
 use futures::StreamExt;
 use indicatif::ProgressBar;
 use serde::{Deserialize, Serialize};
@@ -131,7 +131,7 @@ pub async fn diff_critters(database: &Path) -> anyhow::Result<()> {
 
 pub async fn diff_critter_categories(
     database: &Path,
-    overrides: &CritterCategoryOverride,
+    overrides: &CritterCategoryConfig,
 ) -> anyhow::Result<()> {
     let connection = macdive::establish_connection(database).await?;
 

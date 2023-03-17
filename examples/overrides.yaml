@@ -179,100 +179,101 @@ locations:
     state: California
     region: Northern Channel Islands
     locality: San Miguel Island
-critter_categories:
-  group_names:
-    "Caenogastropods": "Sea Snails"
-    "Euthyneuran Gastropods": "Sea Slugs"
-    "Side-Gilled Sea Slugs": "Sea Slugs"
-    "Gastropods": "Sea Snails"
-    "Brittle Stars": "Sea Stars"
-    "Eared Seals": "Pinnipeds"
-    "Seals": "Pinnipeds"
-    "Spiny and Slipper Lobsters": "Lobsters"
-    "Reef Lobsters": "Lobsters"
-    "Horseshoe Worms": "Worms"
-    "Innkeeper Worms": "Worms"
-    "Ribbon Worms": "Worms"
-    "Bristle Worms": "Worms"
-    "Caridean Shrimps": "Shrimps"
-    "Coral Shrimps": "Shrimps"
-    "Gebiidean Shrimps": "Shrimps"
-    "Prawns": "Shrimps"
-    "Bell Jellies": "Jellies"
-    "Comb Jellies": "Jellies"
-    "Corallimorphs": "Anemones"
-    "Sea Anemones": "Anemones"
-    "Tube-Dwelling Anemones": "Anemones"
-    "Soft Corals": "Corals"
-    "Stony Corals": "Corals"
-    "Sea Turtles": "Turtles"
-    "Sedentary and Tube-Dwelling Bristleworms": "Tube Worms"
-  preferred_higher_ranks:
-    class:
-      - Phylum: Sponges
-      - Phylum: green algae
-      - Subphylum: Tunicates
-    subclass:
-      - Class: Chitons
-      - Class: True Jellies
-    infraclass:
-      - Class: Bivalves
-      - Subclass: Sea Urchins
-    superorder:
-      - Class: Sea Stars
-      - Infraclass: Sharks
-      - Infraclass: Euthyneuran Gastropods
-    order:
-      - Phylum: Flatworms
-      - Class: "Sea Urchins, Sand Dollars, and Heart Urchins"
-      - Class: Sea Stars
-      - Class: Brittle Stars
-      - Class: Bivalves
-      - Class: Birds
-      - Class: Sea Cucumbers
-      - Class: True Jellies
-      - Subclass: Hydroids
-      - Subclass: Sea Urchins
-      - Infraclass: Sharks
-      - Infraclass: Rays
-      - Infraclass: Barnacles
-      - Superorder: Squids and Cuttlefishes
-    suborder:
-      - Order: Octopuses
-    superfamily:
-      - Subclass: Caenogastropods
-      - Infraclass: Euthyneuran Gastropods
-      - Order: Nudibranchs
-      - Order: Octopuses
-      - Order: Scallops and Allies
-      - Suborder: Prawns
-      - Infraorder: True Crabs
-    family:
-      - Superorder: Squids and Cuttlefishes
-      - Order: Flatfishes
-      - Order: True Eels
-      - Order: Nudibranchs
-      - Order: Sea Anemones
-      - Order: Flag-mouth Jellies
-      - Order: Soft Corals
-      - Order: Sea Pens
-      - Suborder: Prawns
-      - Infraorder: Spiny and Slipper Lobsters
-      - Infraorder: True Crabs
-      - Infraorder: Caridean Shrimps
-      - Class: Sea Stars
-      - Subclass: Mantis Shrimps
-      - Subclass: Sedentary and Tube-dwelling Bristleworms
-      - Subclass: Caenogastropods
-      - Superfamily: Hermit Crabs
-    subfamily:
-      - Family: Cardinalfishes
-      - Family: Pufferfishes
-      - Family: Morays
-      - Family: Scorpionfishes
-      - Family: Jacks
-      - Family: Wrasses
-    genus:
-      - Subfamily: Damselfishes
-      - Subfamily: Groupers
-      - Subfamily: Surgeonfishes and Tangs
+critters:
+  categories:
+    group_names:
+      "Caenogastropods": "Sea Snails"
+      "Euthyneuran Gastropods": "Sea Slugs"
+      "Side-Gilled Sea Slugs": "Sea Slugs"
+      "Gastropods": "Sea Snails"
+      "Brittle Stars": "Sea Stars"
+      "Eared Seals": "Pinnipeds"
+      "Seals": "Pinnipeds"
+      "Spiny and Slipper Lobsters": "Lobsters"
+      "Reef Lobsters": "Lobsters"
+      "Horseshoe Worms": "Worms"
+      "Innkeeper Worms": "Worms"
+      "Ribbon Worms": "Worms"
+      "Bristle Worms": "Worms"
+      "Caridean Shrimps": "Shrimps"
+      "Coral Shrimps": "Shrimps"
+      "Gebiidean Shrimps": "Shrimps"
+      "Prawns": "Shrimps"
+      "Bell Jellies": "Jellies"
+      "Comb Jellies": "Jellies"
+      "Corallimorphs": "Anemones"
+      "Sea Anemones": "Anemones"
+      "Tube-Dwelling Anemones": "Anemones"
+      "Soft Corals": "Corals"
+      "Stony Corals": "Corals"
+      "Sea Turtles": "Turtles"
+      "Sedentary and Tube-Dwelling Bristleworms": "Tube Worms"
+    preferred_higher_ranks:
+      class:
+        - Phylum: Sponges
+        - Phylum: green algae
+        - Subphylum: Tunicates
+      subclass:
+        - Class: Chitons
+        - Class: True Jellies
+      infraclass:
+        - Class: Bivalves
+        - Subclass: Sea Urchins
+      superorder:
+        - Class: Sea Stars
+        - Infraclass: Sharks
+        - Infraclass: Euthyneuran Gastropods
+      order:
+        - Phylum: Flatworms
+        - Class: "Sea Urchins, Sand Dollars, and Heart Urchins"
+        - Class: Sea Stars
+        - Class: Brittle Stars
+        - Class: Bivalves
+        - Class: Birds
+        - Class: Sea Cucumbers
+        - Class: True Jellies
+        - Subclass: Hydroids
+        - Subclass: Sea Urchins
+        - Infraclass: Sharks
+        - Infraclass: Rays
+        - Infraclass: Barnacles
+        - Superorder: Squids and Cuttlefishes
+      suborder:
+        - Order: Octopuses
+      superfamily:
+        - Subclass: Caenogastropods
+        - Infraclass: Euthyneuran Gastropods
+        - Order: Nudibranchs
+        - Order: Octopuses
+        - Order: Scallops and Allies
+        - Suborder: Prawns
+        - Infraorder: True Crabs
+      family:
+        - Superorder: Squids and Cuttlefishes
+        - Order: Flatfishes
+        - Order: True Eels
+        - Order: Nudibranchs
+        - Order: Sea Anemones
+        - Order: Flag-mouth Jellies
+        - Order: Soft Corals
+        - Order: Sea Pens
+        - Suborder: Prawns
+        - Infraorder: Spiny and Slipper Lobsters
+        - Infraorder: True Crabs
+        - Infraorder: Caridean Shrimps
+        - Class: Sea Stars
+        - Subclass: Mantis Shrimps
+        - Subclass: Sedentary and Tube-dwelling Bristleworms
+        - Subclass: Caenogastropods
+        - Superfamily: Hermit Crabs
+      subfamily:
+        - Family: Cardinalfishes
+        - Family: Pufferfishes
+        - Family: Morays
+        - Family: Scorpionfishes
+        - Family: Jacks
+        - Family: Wrasses
+      genus:
+        - Subfamily: Damselfishes
+        - Subfamily: Groupers
+        - Subfamily: Surgeonfishes and Tangs

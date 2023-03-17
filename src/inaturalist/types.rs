@@ -6,7 +6,7 @@ mod api;
 mod models;
 
 use crate::inaturalist::get_taxon_by_id;
-use crate::types::CritterCategoryOverride;
+use crate::types::CritterCategoryConfig;
 pub(in crate::inaturalist) use api::*;
 pub use models::*;
 use std::fmt::{Display, Formatter};
@@ -107,7 +107,7 @@ impl TaxonGroupName {
     pub fn prefer_higher_common_name(
         &self,
         class: &str,
-        overrides: &CritterCategoryOverride,
+        overrides: &CritterCategoryConfig,
     ) -> bool {
         overrides
             .preferred_higher_ranks
@@ -142,17 +142,15 @@ impl Display for TaxonGroupName {
 
 #[async_trait::async_trait]
 pub trait TaxonCategoryName {
-    async fn group_name(
-        &self,
-        overrides: &CritterCategoryOverride,
-    ) -> anyhow::Result<TaxonGroupName>;
+    async fn group_name(&self, overrides: &CritterCategoryConfig)
+        -> anyhow::Result<TaxonGroupName>;
 }
 
 #[async_trait::async_trait]
 impl TaxonCategoryName for Taxon {
     async fn group_name(
         &self,
-        overrides: &CritterCategoryOverride,
+        overrides: &CritterCategoryConfig,
     ) -> anyhow::Result<TaxonGroupName> {
         let mut group = TaxonGroupName::Unspecified;
         if let Some(ancestor_ids) = &self.ancestor_ids {

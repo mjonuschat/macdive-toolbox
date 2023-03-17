@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
                 commands::lightroom::export_lightroom_metadata_presets(
                     &database,
                     options,
-                    &args.overrides()?.locations(),
+                    &args.config()?.locations(),
                     *force,
                 )
                 .await?
@@ -54,7 +54,7 @@ async fn main() -> Result<()> {
             CritterCommands::ValidateCategories => {
                 commands::critters::diff_critter_categories(
                     &database,
-                    args.overrides()?.critter_categories(),
+                    args.config()?.critter_categories(),
                 )
                 .await?
             }

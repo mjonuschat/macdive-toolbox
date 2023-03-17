@@ -56,22 +56,29 @@ impl DecimalToDms for LatLng {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Overrides {
+pub struct ApplicationConfig {
     pub locations: HashMap<String, LocationOverride>,
-    pub critter_categories: CritterCategoryOverride,
+    pub critters: CritterConfig,
 }
 
-impl Overrides {
+impl ApplicationConfig {
     pub fn locations(&self) -> Vec<LocationOverride> {
         self.locations.values().cloned().collect()
     }
 
-    pub fn critter_categories(&self) -> &CritterCategoryOverride {
-        &self.critter_categories
+    pub fn critter_categories(&self) -> &CritterCategoryConfig {
+        &self.critters.categories
     }
 }
+
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct CritterCategoryOverride {
+pub struct CritterConfig {
+    pub name_substitutions: HashMap<String, String>,
+    pub categories: CritterCategoryConfig,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct CritterCategoryConfig {
     pub group_names: HashMap<String, String>,
     pub preferred_higher_ranks: HashMap<String, Vec<TaxonGroupName>>,
 }

@@ -5,7 +5,7 @@ use anyhow::Context;
 use clap::{ArgAction, ColorChoice, ValueHint};
 
 use crate::errors::PathError;
-use crate::types::{CritterCategoryOverride, Overrides};
+use crate::types::{ApplicationConfig, CritterConfig};
 
 static LIGHTROOM_DATA: &str = "Adobe/Lightroom/Metadata Presets/";
 static MACDIVE_DATA: &str = "MacDive/MacDive.sqlite";
@@ -44,16 +44,16 @@ impl Cli {
         resolve_path(&self.database, MACDIVE_DATA)
     }
 
-    pub fn overrides(&self) -> anyhow::Result<Overrides> {
+    pub fn config(&self) -> anyhow::Result<ApplicationConfig> {
         match &self.config {
             Some(path) => {
                 let c = std::fs::read_to_string(path)
-                    .with_context(|| format!("Could not read file {}", &path.display()))?;
+                    .with_context(|| format!("Could not read config file {}", &path.display()))?;
                 Ok(serde_yaml::from_str(&c)?)
             }
-            None => Ok(Overrides {
+            None => Ok(ApplicationConfig {
                 locations: HashMap::new(),
-                critter_categories: CritterCategoryOverride::default(),
+                critters: CritterConfig::default(),
             }),
         }
     }
