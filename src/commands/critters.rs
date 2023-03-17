@@ -38,7 +38,7 @@ impl Default for Critters {
     }
 }
 
-pub async fn diff_critters(database: &Path) -> anyhow::Result<()> {
+pub async fn diff_critters(database: &Path, offline: bool) -> anyhow::Result<()> {
     let connection = macdive::establish_connection(database).await?;
     let critters = crate::macdive::critters(&connection).await?;
 
@@ -47,12 +47,13 @@ pub async fn diff_critters(database: &Path) -> anyhow::Result<()> {
         .filter_map(|c| c.species.as_deref())
         .collect::<Vec<_>>();
 
-    crate::inaturalist::cache_species(&species).await?;
+    crate::inaturalist::cache_species(&species, offline).await?;
 
     for critter in critters {
         if let Some(scientific_name) = critter.species.as_deref() {
             tracing::trace!("Looking up {scientific_name} on iNaturalist");
-            let taxon = match crate::inaturalist::get_taxon_by_name(scientific_name).await {
+            let taxon = match crate::inaturalist::get_taxon_by_name(scientific_name, offline).await
+            {
                 Ok(v) => v,
                 Err(e) => {
                     tracing::warn!(
@@ -132,6 +133,7 @@ pub async fn diff_critters(database: &Path) -> anyhow::Result<()> {
 pub async fn diff_critter_categories(
     database: &Path,
     overrides: &CritterCategoryConfig,
+    offline: bool,
 ) -> anyhow::Result<()> {
     let connection = macdive::establish_connection(database).await?;
 
@@ -153,8 +155,10 @@ pub async fn diff_critter_categories(
     let critter_groups: HashMap<String, TaxonGroupName> =
         futures::stream::iter(critters.iter().filter_map(|c| c.species.clone()))
             .filter_map(|scientific_name| async move {
-                if let Ok(taxon) = crate::inaturalist::get_taxon_by_name(&scientific_name).await {
-                    if let Ok(group_name) = taxon.group_name(overrides).await {
+                if let Ok(taxon) =
+                    crate::inaturalist::get_taxon_by_name(&scientific_name, offline).await
+                {
+                    if let Ok(group_name) = taxon.group_name(overrides, offline).await {
                         return Some((scientific_name, group_name));
                     }
                 } else {

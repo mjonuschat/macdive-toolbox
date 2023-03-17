@@ -5,7 +5,7 @@ use crate::inaturalist::{
     types::ResultsTaxa, types::TaxaAutocompleteQuery, types::Taxon, types::TAXON_FIELDS,
     INATURALIST_CACHE, INAT_API_LIMIT,
 };
-use anyhow::Result;
+use anyhow::{bail, Result};
 use governor::Jitter;
 use itertools::Itertools;
 use surf::{http::mime, RequestBuilder};
@@ -33,11 +33,11 @@ fn cache_taxon(taxon: &Taxon, original_name: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-pub async fn cache_species(species: &[&str]) -> Result<Vec<String>> {
+pub async fn cache_species(species: &[&str], offline: bool) -> Result<Vec<String>> {
     let mut normalized_names: Vec<String> = Vec::new();
     let mut ancestor_ids: HashSet<i32> = HashSet::new();
     for name in species {
-        if let Ok(taxon) = get_taxon_by_name(name).await {
+        if let Ok(taxon) = get_taxon_by_name(name, offline).await {
             normalized_names.push(
                 taxon
                     .name
@@ -167,12 +167,15 @@ pub async fn get_taxon_by_ids(ids: &[i32]) -> Result<Vec<Taxon>> {
     Ok(result)
 }
 
-pub async fn get_taxon_by_id(id: i32) -> Result<Taxon> {
+pub async fn get_taxon_by_id(id: i32, offline: bool) -> Result<Taxon> {
     let taxon_cache = INATURALIST_CACHE.open_tree(INAT_TAXON_CACHE_TREE)?;
 
     match taxon_cache.get(id.to_le_bytes())? {
         Some(ref buf) => rmp_serde::from_slice(buf).map_err(|e| e.into()),
         None => {
+            if offline {
+                bail!("Running in offline mode - taxon lookup disabled");
+            }
             let taxon = lookup_taxon_by_id(id).await?;
             cache_taxon(&taxon, None)?;
             Ok(taxon)
@@ -180,7 +183,7 @@ pub async fn get_taxon_by_id(id: i32) -> Result<Taxon> {
     }
 }
 
-pub async fn get_taxon_by_name(scientific_name: &str) -> Result<Taxon> {
+pub async fn get_taxon_by_name(scientific_name: &str, offline: bool) -> Result<Taxon> {
     let taxon_cache = INATURALIST_CACHE.open_tree(INAT_TAXON_CACHE_TREE)?;
     let name_cache = INATURALIST_CACHE.open_tree(INAT_NAME_CACHE_TREE)?;
 
@@ -199,6 +202,9 @@ pub async fn get_taxon_by_name(scientific_name: &str) -> Result<Taxon> {
     match result {
         Some(taxon) => Ok(taxon),
         None => {
+            if offline {
+                bail!("Running in offline mode - taxon lookup disabled");
+            }
             let taxon = lookup_taxon_by_name(scientific_name).await?;
             cache_taxon(&taxon, Some(scientific_name))?;
             Ok(taxon)

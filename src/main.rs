@@ -58,11 +58,14 @@ async fn main() -> Result<()> {
             }
         },
         Commands::Critters { command } => match command {
-            CritterCommands::Validate => commands::critters::diff_critters(&database).await?,
+            CritterCommands::Validate => {
+                commands::critters::diff_critters(&database, args.offline).await?
+            }
             CritterCommands::ValidateCategories => {
                 commands::critters::diff_critter_categories(
                     &database,
-                    args.config()?.critter_categories(),
+                    &args.config()?.into(),
+                    args.offline,
                 )
                 .await?
             }

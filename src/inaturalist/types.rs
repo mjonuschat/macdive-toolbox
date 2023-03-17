@@ -142,8 +142,11 @@ impl Display for TaxonGroupName {
 
 #[async_trait::async_trait]
 pub trait TaxonCategoryName {
-    async fn group_name(&self, overrides: &CritterCategoryConfig)
-        -> anyhow::Result<TaxonGroupName>;
+    async fn group_name(
+        &self,
+        overrides: &CritterCategoryConfig,
+        offline: bool,
+    ) -> anyhow::Result<TaxonGroupName>;
 }
 
 #[async_trait::async_trait]
@@ -151,11 +154,12 @@ impl TaxonCategoryName for Taxon {
     async fn group_name(
         &self,
         overrides: &CritterCategoryConfig,
+        offline: bool,
     ) -> anyhow::Result<TaxonGroupName> {
         let mut group = TaxonGroupName::Unspecified;
         if let Some(ancestor_ids) = &self.ancestor_ids {
             for ancestor_id in ancestor_ids.iter() {
-                let ancestor = get_taxon_by_id(*ancestor_id).await?;
+                let ancestor = get_taxon_by_id(*ancestor_id, offline).await?;
                 match ancestor.rank.as_deref() {
                     Some("phylum") => {
                         if let Some(name) = ancestor.preferred_common_name {

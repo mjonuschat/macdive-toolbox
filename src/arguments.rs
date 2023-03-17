@@ -35,6 +35,10 @@ pub(crate) struct Cli {
     /// Path to the configuration file
     #[clap(short='c', long, value_hint=ValueHint::FilePath)]
     config: Option<PathBuf>,
+    /// Offline mode
+    #[clap(short, long, default_value_t = false)]
+    pub(crate) offline: bool,
+    /// Subcommands
     #[clap(subcommand)]
     pub(crate) command: Commands,
 }
