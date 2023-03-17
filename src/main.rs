@@ -20,6 +20,15 @@ use arguments::{Cli, Commands};
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let args = Cli::parse();
+
+    let log_level = match args.verbose {
+        0 => Level::WARN,
+        1 => Level::INFO,
+        2 => Level::DEBUG,
+        _ => Level::TRACE,
+    };
+
     // Logging
     tracing_subscriber::registry()
         .with(
@@ -29,12 +38,11 @@ async fn main() -> Result<()> {
         )
         .with(
             Targets::default()
-                .with_target("macdive_exporter", Level::TRACE)
+                .with_target("macdive_exporter", log_level)
                 .with_target("surf", LevelFilter::OFF),
         )
         .init();
 
-    let args = Cli::parse();
     let database = args.macdive_database()?;
 
     match &args.command {
