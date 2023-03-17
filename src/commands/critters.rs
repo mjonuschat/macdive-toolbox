@@ -1,10 +1,42 @@
-use crate::inaturalist::{TaxonCategoryName, TaxonGroupName};
+use crate::arguments::{CritterImportOptions, MacdiveImportFormat};
+use crate::inaturalist::{get_taxon_by_name, Taxon, TaxonCategoryName, TaxonGroupName};
 use crate::macdive;
 use crate::macdive::models::CritterUpdate;
 use crate::types::CritterCategoryOverride;
 use futures::StreamExt;
+use indicatif::ProgressBar;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::path::Path;
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+struct CritterItem {
+    name: Option<String>,
+    species: Option<String>,
+    size: f32,
+    category: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Critters {
+    schema: String,
+    critter: Vec<CritterItem>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CritterDoc {
+    critters: Critters,
+}
+impl Default for Critters {
+    fn default() -> Self {
+        Self {
+            schema: "1.0.0".to_string(),
+            critter: vec![],
+        }
+    }
+}
 
 pub async fn diff_critters(database: &Path) -> anyhow::Result<()> {
     let connection = macdive::establish_connection(database).await?;
@@ -271,5 +303,84 @@ pub async fn diff_critter_categories(
     println!("Extraneous categories: {:#?}", &extraneous_categories);
     // println!("Existing categories: {:#?}", &existing);
 
+    Ok(())
+}
+
+pub(crate) async fn critter_import(options: &CritterImportOptions) -> anyhow::Result<()> {
+    let file = File::open(&options.source)?;
+    let reader = BufReader::new(file).lines();
+    let names: Vec<String> = reader
+        .filter_map(Result::ok)
+        .filter(|line| line.trim() != "")
+        .filter(|line| !line.ends_with(" sp.") && !line.ends_with(" spp."))
+        .collect();
+
+    let pb = ProgressBar::new(names.len() as u64);
+
+    let taxons = futures::stream::iter(names)
+        .map(|name| {
+            let name = name;
+            pb.inc(1);
+            async move { (get_taxon_by_name(&name).await, name) }
+        })
+        .buffer_unordered(10usize)
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .map(|response| match response {
+            (Ok(taxon), _) => taxon,
+            (Err(e), name) => {
+                tracing::error!("{e}");
+                Taxon {
+                    name: Some(name),
+                    preferred_common_name: Some("!INVALID!".to_string()),
+                    ..Default::default()
+                }
+            }
+        })
+        .collect::<Vec<Taxon>>();
+
+    let critters = Critters {
+        critter: taxons
+            .iter()
+            .map(|taxon| CritterItem {
+                name: taxon
+                    .preferred_common_name
+                    .as_deref()
+                    .map(|v| change_case::title_case(v.trim())),
+                species: taxon
+                    .name
+                    .as_deref()
+                    .map(|v| change_case::title_case(v.trim())),
+                ..Default::default()
+            })
+            .filter(|critter| critter.name.is_some())
+            .collect(),
+        ..Default::default()
+    };
+
+    match options.format {
+        MacdiveImportFormat::Xml => {
+            let result = xml_serde::to_string(&critters)?.replace(
+                "<critters xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">",
+                "<!DOCTYPE critters SYSTEM \"http://www.mac-dive.com/macdive_critters.dtd\">\n<critters>",
+            );
+            std::fs::write(&options.dest, result)?;
+        }
+        MacdiveImportFormat::Csv => {
+            let mut wtr = csv::Writer::from_writer(File::create(&options.dest)?);
+            taxons
+                .iter()
+                .map(|t| {
+                    wtr.write_record([
+                        &t.preferred_common_name.as_deref().unwrap_or_default(),
+                        &t.name.as_deref().unwrap_or_default(),
+                        &t.rank.as_deref().unwrap_or_default(),
+                    ])
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            wtr.flush()?;
+        }
+    };
     Ok(())
 }

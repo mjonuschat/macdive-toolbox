@@ -53,6 +53,7 @@ async fn main() -> Result<()> {
             )
             .await?
         }
+        Commands::CritterImport(options) => commands::critters::critter_import(options).await?,
     }
     Ok(())
 }

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// iNaturalist API v2 Schema
 /// @see http://api.inaturalist.org/v2/docs/
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Taxon {
     /// Unique auto-increment integer identifier
     pub id: i32,

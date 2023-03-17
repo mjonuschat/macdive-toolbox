@@ -1,11 +1,10 @@
-use crate::inaturalist::{
-    types::ResultsTaxa, types::Taxon, types::TAXON_FIELDS, INATURALIST_CACHE, INAT_API_LIMIT,
-};
-
 use std::collections::HashSet;
 use std::time::Duration;
 
-use crate::inaturalist::types::TaxaAutocompleteQuery;
+use crate::inaturalist::{
+    types::ResultsTaxa, types::TaxaAutocompleteQuery, types::Taxon, types::TAXON_FIELDS,
+    INATURALIST_CACHE, INAT_API_LIMIT,
+};
 use anyhow::Result;
 use governor::Jitter;
 use itertools::Itertools;

@@ -64,6 +64,7 @@ pub(crate) enum Commands {
     LightroomMetadata(LightroomOptions),
     DiffCritters,
     DiffCritterCategories,
+    CritterImport(CritterImportOptions),
 }
 
 #[derive(Debug, clap::Args)]
@@ -78,6 +79,27 @@ pub(crate) struct LightroomOptions {
     /// Force export and overwrite all existing files
     #[clap(short, long)]
     pub(crate) force: bool,
+}
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub(crate) enum MacdiveImportFormat {
+    Xml,
+    Csv,
+}
+
+#[derive(Debug, clap::Args)]
+#[clap(args_conflicts_with_subcommands = true)]
+pub(crate) struct CritterImportOptions {
+    /// Path to the Lightroom Settings directory
+    #[clap(short, long, value_hint=ValueHint::DirPath)]
+    pub(crate) source: PathBuf,
+    /// Path to the Lightroom Settings directory
+    #[clap(short, long, value_hint=ValueHint::DirPath)]
+    pub(crate) dest: PathBuf,
+    /// File format
+    #[clap(short, long)]
+    #[arg(value_enum)]
+    pub(crate) format: MacdiveImportFormat,
 }
 
 impl LightroomOptions {
