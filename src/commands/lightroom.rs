@@ -48,6 +48,7 @@ pub(crate) async fn export_lightroom_metadata_presets(
     database: &Path,
     options: &LightroomOptions,
     overrides: &[LocationOverride],
+    force: bool,
 ) -> anyhow::Result<()> {
     println!(
         "{} {}Locating existing metadata presets...",
@@ -75,7 +76,7 @@ pub(crate) async fn export_lightroom_metadata_presets(
     );
     let mut sites: Vec<types::DiveSite> = sites
         .into_iter()
-        .filter(|site| options.force || !existing.contains_key(&site.uuid))
+        .filter(|site| force || !existing.contains_key(&site.uuid))
         .collect();
     let pb = ProgressBar::new(sites.len() as u64);
 

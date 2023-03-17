@@ -32,11 +32,11 @@ pub(crate) struct Cli {
     /// Path to the MacDive database file
     #[clap(short, long, value_hint=ValueHint::FilePath)]
     pub database: Option<PathBuf>,
-    #[clap(subcommand)]
-    pub(crate) command: Commands,
-    /// Path to the Location overrides file
+    /// Path to the configuration file
     #[clap(short='c', long, value_hint=ValueHint::FilePath)]
     config: Option<PathBuf>,
+    #[clap(subcommand)]
+    pub(crate) command: Commands,
 }
 
 impl Cli {
@@ -61,13 +61,28 @@ impl Cli {
 
 #[derive(clap::Subcommand, Debug)]
 pub(crate) enum Commands {
-    LightroomMetadata(LightroomOptions),
-    DiffCritters,
-    DiffCritterCategories,
-    CritterImport(CritterImportOptions),
+    Lightroom {
+        #[clap(subcommand)]
+        command: LightroomCommands,
+        #[clap(flatten)]
+        options: LightroomOptions,
+    },
+    Critters {
+        #[clap(subcommand)]
+        command: CritterCommands,
+    },
 }
 
-#[derive(Debug, clap::Args)]
+#[derive(clap::Subcommand, Debug)]
+pub(crate) enum LightroomCommands {
+    ExportSites {
+        /// Force export and overwrite all existing files
+        #[clap(short, long)]
+        force: bool,
+    },
+}
+
+#[derive(Clone, Debug, clap::Args)]
 #[clap(args_conflicts_with_subcommands = true)]
 pub(crate) struct LightroomOptions {
     /// Path to the Lightroom Settings directory
@@ -76,30 +91,34 @@ pub(crate) struct LightroomOptions {
     /// Google Maps API key for reverse geocoding
     #[clap(short, long, value_hint=ValueHint::Other)]
     pub(crate) api_key: Option<String>,
-    /// Force export and overwrite all existing files
-    #[clap(short, long)]
-    pub(crate) force: bool,
 }
 
-#[derive(clap::ValueEnum, Clone, Debug)]
-pub(crate) enum MacdiveImportFormat {
-    Xml,
-    Csv,
+#[derive(clap::Subcommand, Debug)]
+pub(crate) enum CritterCommands {
+    Validate,
+    ValidateCategories,
+    PrepareImport(PrepareImportOptions),
 }
 
 #[derive(Debug, clap::Args)]
 #[clap(args_conflicts_with_subcommands = true)]
-pub(crate) struct CritterImportOptions {
+pub(crate) struct PrepareImportOptions {
+    /// File format
+    #[clap(short, long)]
+    #[arg(value_enum)]
+    pub(crate) format: MacdiveImportFormat,
     /// Path to the Lightroom Settings directory
     #[clap(short, long, value_hint=ValueHint::DirPath)]
     pub(crate) source: PathBuf,
     /// Path to the Lightroom Settings directory
     #[clap(short, long, value_hint=ValueHint::DirPath)]
     pub(crate) dest: PathBuf,
-    /// File format
-    #[clap(short, long)]
-    #[arg(value_enum)]
-    pub(crate) format: MacdiveImportFormat,
+}
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub(crate) enum MacdiveImportFormat {
+    Xml,
+    Csv,
 }
 
 impl LightroomOptions {

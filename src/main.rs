@@ -15,6 +15,7 @@ mod lightroom;
 mod macdive;
 mod types;
 
+use crate::arguments::{CritterCommands, LightroomCommands};
 use arguments::{Cli, Commands};
 
 #[tokio::main]
@@ -37,23 +38,30 @@ async fn main() -> Result<()> {
     let database = args.macdive_database()?;
 
     match &args.command {
-        Commands::LightroomMetadata(options) => {
-            commands::lightroom::export_lightroom_metadata_presets(
-                &database,
-                options,
-                &args.overrides()?.locations(),
-            )
-            .await?
-        }
-        Commands::DiffCritters => commands::critters::diff_critters(&database).await?,
-        Commands::DiffCritterCategories => {
-            commands::critters::diff_critter_categories(
-                &database,
-                args.overrides()?.critter_categories(),
-            )
-            .await?
-        }
-        Commands::CritterImport(options) => commands::critters::critter_import(options).await?,
+        Commands::Lightroom { command, options } => match command {
+            LightroomCommands::ExportSites { force } => {
+                commands::lightroom::export_lightroom_metadata_presets(
+                    &database,
+                    options,
+                    &args.overrides()?.locations(),
+                    *force,
+                )
+                .await?
+            }
+        },
+        Commands::Critters { command } => match command {
+            CritterCommands::Validate => commands::critters::diff_critters(&database).await?,
+            CritterCommands::ValidateCategories => {
+                commands::critters::diff_critter_categories(
+                    &database,
+                    args.overrides()?.critter_categories(),
+                )
+                .await?
+            }
+            CritterCommands::PrepareImport(options) => {
+                commands::critters::critter_import(options).await?
+            }
+        },
     }
     Ok(())
 }

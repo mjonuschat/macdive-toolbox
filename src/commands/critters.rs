@@ -1,4 +1,4 @@
-use crate::arguments::{CritterImportOptions, MacdiveImportFormat};
+use crate::arguments::{MacdiveImportFormat, PrepareImportOptions};
 use crate::inaturalist::{get_taxon_by_name, Taxon, TaxonCategoryName, TaxonGroupName};
 use crate::macdive;
 use crate::macdive::models::CritterUpdate;
@@ -306,7 +306,7 @@ pub async fn diff_critter_categories(
     Ok(())
 }
 
-pub(crate) async fn critter_import(options: &CritterImportOptions) -> anyhow::Result<()> {
+pub(crate) async fn critter_import(options: &PrepareImportOptions) -> anyhow::Result<()> {
     let file = File::open(&options.source)?;
     let reader = BufReader::new(file).lines();
     let names: Vec<String> = reader
