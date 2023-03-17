@@ -1,8 +1,8 @@
 use crate::arguments::{MacdiveImportFormat, PrepareImportOptions};
-use crate::inaturalist::{get_taxon_by_name, Taxon, TaxonCategoryName, TaxonGroupName};
+use crate::inaturalist::{Taxon, TaxonCategoryName, TaxonGroupName};
 use crate::macdive;
 use crate::macdive::models::CritterUpdate;
-use crate::types::CritterCategoryConfig;
+use crate::types::{CritterCategoryConfig, CritterConfig};
 use futures::StreamExt;
 use indicatif::ProgressBar;
 use serde::{Deserialize, Serialize};
@@ -17,6 +17,8 @@ struct CritterItem {
     species: Option<String>,
     size: f32,
     category: Option<String>,
+    #[serde(skip_serializing)]
+    original_name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,6 +31,7 @@ struct Critters {
 struct CritterDoc {
     critters: Critters,
 }
+
 impl Default for Critters {
     fn default() -> Self {
         Self {
@@ -310,44 +313,58 @@ pub async fn diff_critter_categories(
     Ok(())
 }
 
-pub(crate) async fn critter_import(options: &PrepareImportOptions) -> anyhow::Result<()> {
+pub(crate) async fn critter_import(
+    options: &PrepareImportOptions,
+    config: &CritterConfig,
+    offline: bool,
+) -> anyhow::Result<()> {
     let file = File::open(&options.source)?;
     let reader = BufReader::new(file).lines();
     let names: Vec<String> = reader
         .filter_map(Result::ok)
         .filter(|line| line.trim() != "")
-        .filter(|line| !line.ends_with(" sp.") && !line.ends_with(" spp."))
         .collect();
 
     let pb = ProgressBar::new(names.len() as u64);
-
-    let taxons = futures::stream::iter(names)
-        .map(|name| {
-            let name = name;
+    let results = futures::stream::iter(names)
+        .filter_map(|scientific_name| {
+            let scientific_name = scientific_name;
             pb.inc(1);
-            async move { (get_taxon_by_name(&name).await, name) }
-        })
-        .buffer_unordered(10usize)
-        .collect::<Vec<_>>()
-        .await
-        .into_iter()
-        .map(|response| match response {
-            (Ok(taxon), _) => taxon,
-            (Err(e), name) => {
-                tracing::error!("{e}");
-                Taxon {
-                    name: Some(name),
-                    preferred_common_name: Some("!INVALID!".to_string()),
-                    ..Default::default()
+            async move {
+                if let Ok(taxon) =
+                    crate::inaturalist::get_taxon_by_name(&scientific_name, offline).await
+                {
+                    if let Ok(group_name) = taxon.group_name(&config.categories, offline).await {
+                        return Some((taxon, group_name, scientific_name));
+                    }
+                    Some((taxon, TaxonGroupName::Unspecified, scientific_name))
+                } else {
+                    tracing::debug!(
+                        scientific_name = scientific_name.as_str(),
+                        "Taxon lookup failed"
+                    );
+                    if options.skip_invalid {
+                        return None;
+                    }
+                    Some((
+                        Taxon {
+                            name: Some(scientific_name.clone()),
+                            preferred_common_name: None,
+                            ..Default::default()
+                        },
+                        TaxonGroupName::Unspecified,
+                        scientific_name,
+                    ))
                 }
             }
         })
-        .collect::<Vec<Taxon>>();
+        .collect::<Vec<_>>()
+        .await;
 
     let critters = Critters {
-        critter: taxons
-            .iter()
-            .map(|taxon| CritterItem {
+        critter: results
+            .into_iter()
+            .map(|(taxon, group_name, original_name)| CritterItem {
                 name: taxon
                     .preferred_common_name
                     .as_deref()
@@ -356,6 +373,8 @@ pub(crate) async fn critter_import(options: &PrepareImportOptions) -> anyhow::Re
                     .name
                     .as_deref()
                     .map(|v| change_case::title_case(v.trim())),
+                original_name: Some(original_name),
+                category: Some(group_name.to_string()),
                 ..Default::default()
             })
             .filter(|critter| critter.name.is_some())
@@ -373,13 +392,15 @@ pub(crate) async fn critter_import(options: &PrepareImportOptions) -> anyhow::Re
         }
         MacdiveImportFormat::Csv => {
             let mut wtr = csv::Writer::from_writer(File::create(&options.dest)?);
-            taxons
+            critters
+                .critter
                 .iter()
                 .map(|t| {
                     wtr.write_record([
-                        &t.preferred_common_name.as_deref().unwrap_or_default(),
                         &t.name.as_deref().unwrap_or_default(),
-                        &t.rank.as_deref().unwrap_or_default(),
+                        &t.species.as_deref().unwrap_or_default(),
+                        &t.category.as_deref().unwrap_or_default(),
+                        &t.original_name.as_deref().unwrap_or_default(),
                     ])
                 })
                 .collect::<Result<Vec<_>, _>>()?;

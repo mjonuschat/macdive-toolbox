@@ -108,7 +108,10 @@ pub(crate) enum CritterCommands {
 #[clap(args_conflicts_with_subcommands = true)]
 pub(crate) struct PrepareImportOptions {
     /// File format
-    #[clap(short, long)]
+    #[clap(long, default_value_t = false)]
+    pub(crate) skip_invalid: bool,
+    /// File format
+    #[clap(short, long, default_value = "xml")]
     #[arg(value_enum)]
     pub(crate) format: MacdiveImportFormat,
     /// Path to the Lightroom Settings directory

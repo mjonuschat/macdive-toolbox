@@ -180,6 +180,8 @@ locations:
     region: Northern Channel Islands
     locality: San Miguel Island
 critters:
+  name_substitutions:
+    "Cancilla filaris": "Domiporta filaris"
   categories:
     group_names:
       "Caenogastropods": "Sea Snails"

@@ -65,16 +65,32 @@ impl ApplicationConfig {
     pub fn locations(&self) -> Vec<LocationOverride> {
         self.locations.values().cloned().collect()
     }
-
-    pub fn critter_categories(&self) -> &CritterCategoryConfig {
-        &self.critters.categories
-    }
 }
+
+type CritterNameSubstitutions = HashMap<String, String>;
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CritterConfig {
-    pub name_substitutions: HashMap<String, String>,
+    pub name_substitutions: CritterNameSubstitutions,
     pub categories: CritterCategoryConfig,
+}
+
+impl From<ApplicationConfig> for CritterConfig {
+    fn from(config: ApplicationConfig) -> Self {
+        config.critters
+    }
+}
+
+impl From<ApplicationConfig> for CritterCategoryConfig {
+    fn from(config: ApplicationConfig) -> Self {
+        config.critters.categories
+    }
+}
+
+impl From<ApplicationConfig> for CritterNameSubstitutions {
+    fn from(config: ApplicationConfig) -> Self {
+        config.critters.name_substitutions
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

@@ -70,7 +70,8 @@ async fn main() -> Result<()> {
                 .await?
             }
             CritterCommands::PrepareImport(options) => {
-                commands::critters::critter_import(options).await?
+                commands::critters::critter_import(options, &args.config()?.into(), args.offline)
+                    .await?
             }
         },
     }
