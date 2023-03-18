@@ -13,6 +13,7 @@ mod geocode;
 mod inaturalist;
 mod lightroom;
 mod macdive;
+mod parsers;
 mod types;
 
 use crate::arguments::{CritterCommands, LightroomCommands};

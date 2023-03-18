@@ -2,6 +2,7 @@ use crate::arguments::{MacdiveImportFormat, PrepareImportOptions};
 use crate::inaturalist::{Taxon, TaxonCategoryName, TaxonGroupName};
 use crate::macdive;
 use crate::macdive::models::CritterUpdate;
+use crate::parsers::species::sanitize_species_name;
 use crate::types::{CritterCategoryConfig, CritterConfig};
 use futures::StreamExt;
 use indicatif::ProgressBar;
@@ -322,7 +323,9 @@ pub(crate) async fn critter_import(
     let reader = BufReader::new(file).lines();
     let names: Vec<String> = reader
         .filter_map(Result::ok)
-        .filter(|line| line.trim() != "")
+        .map(|line| line.trim().to_string())
+        .filter(|line| !line.is_empty())
+        .filter_map(|name| sanitize_species_name(&name).ok())
         .collect();
 
     let pb = ProgressBar::new(names.len() as u64);
