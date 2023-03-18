@@ -61,3 +61,19 @@ pub enum PathError {
     #[error("File or directory `{0}` is not accessible")]
     Inaccessible(String),
 }
+
+#[derive(Debug, Error)]
+pub enum MtpStorageError {
+    #[error("Folder {0} could not be found")]
+    FolderNotFound(String),
+}
+
+#[derive(Error, Debug)]
+pub enum MtpDeviceError {
+    #[error("No MTP device found on USB bus")]
+    NoDeviceAttached,
+    #[error("No device matching selection criteria found")]
+    DeviceNotFound,
+    #[error("FFI error: {0}")]
+    LibMtpError(#[from] libmtp_rs::error::Error),
+}

@@ -15,7 +15,7 @@ mod macdive;
 mod parsers;
 mod types;
 
-use crate::arguments::{CritterCommands, LightroomCommands};
+use crate::arguments::{CritterCommands, LightroomCommands, MtpCommands};
 use arguments::{Cli, Commands};
 
 #[tokio::main]
@@ -73,6 +73,14 @@ async fn main() -> Result<()> {
                 commands::critters::critter_import(options, &args.config()?.into(), args.offline)
                     .await?
             }
+        },
+        Commands::Mtp { command, options } => match command {
+            MtpCommands::Detect => commands::mtp::detect(args.verbose)?,
+            MtpCommands::ListFiles { .. } => {
+                let verbose = args.verbose > 0;
+                commands::mtp::listfiles(options.to_owned().into(), verbose)?
+            }
+            MtpCommands::Sync(params) => commands::mtp::sync(options, params)?,
         },
     }
     Ok(())
