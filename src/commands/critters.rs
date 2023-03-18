@@ -325,6 +325,12 @@ pub(crate) async fn critter_import(
         .filter_map(Result::ok)
         .map(|line| line.trim().to_string())
         .filter(|line| !line.is_empty())
+        .map(|line| {
+            config
+                .name_substitutions
+                .get(&line)
+                .map_or(line, |v| v.to_string())
+        })
         .filter_map(|name| sanitize_species_name(&name).ok())
         .collect();
 
@@ -380,7 +386,7 @@ pub(crate) async fn critter_import(
                 category: Some(group_name.to_string()),
                 ..Default::default()
             })
-            .filter(|critter| critter.name.is_some())
+            .filter(|critter| critter.species.is_some())
             .collect(),
         ..Default::default()
     };
