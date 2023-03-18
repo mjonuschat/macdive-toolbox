@@ -7,9 +7,10 @@ use std::path::Path;
 
 use crate::arguments::LightroomOptions;
 use crate::errors::ConversionError;
-use crate::lightroom::MetadataPreset;
+use crate::helpers::lightroom::MetadataPreset;
+use crate::helpers::{geocode, lightroom};
 use crate::types::LocationOverride;
-use crate::{geocode, lightroom, macdive, types};
+use crate::{macdive, types};
 
 static LOOKING_GLASS: Emoji<'_, '_> = Emoji("🔍  ", "");
 static DIVING_MASK: Emoji<'_, '_> = Emoji("🤿️  ", "");
