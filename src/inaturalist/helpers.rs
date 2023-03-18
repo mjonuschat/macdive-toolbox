@@ -9,10 +9,12 @@ use anyhow::{bail, Result};
 use governor::Jitter;
 use itertools::Itertools;
 use surf::{http::mime, RequestBuilder};
+use tracing::instrument;
 
 const INAT_TAXON_CACHE_TREE: &str = "taxa";
 const INAT_NAME_CACHE_TREE: &str = "names";
 
+#[instrument(name = "cache-taxon", skip(taxon))]
 fn cache_taxon(taxon: &Taxon, original_name: Option<&str>) -> Result<()> {
     let taxon_cache = INATURALIST_CACHE.open_tree(INAT_TAXON_CACHE_TREE)?;
     let name_cache = INATURALIST_CACHE.open_tree(INAT_NAME_CACHE_TREE)?;
@@ -33,6 +35,7 @@ fn cache_taxon(taxon: &Taxon, original_name: Option<&str>) -> Result<()> {
     Ok(())
 }
 
+#[instrument(name = "cache-species", skip_all)]
 pub async fn cache_species(species: &[&str], offline: bool) -> Result<Vec<String>> {
     let mut normalized_names: Vec<String> = Vec::new();
     let mut ancestor_ids: HashSet<i32> = HashSet::new();
@@ -75,6 +78,7 @@ async fn lookup_taxon(request: RequestBuilder) -> Result<Vec<Taxon>> {
     Ok(taxa.results)
 }
 
+#[instrument(name = "fetch")]
 async fn lookup_taxon_by_id(id: i32) -> Result<Taxon> {
     lookup_taxon_by_ids(&[id])
         .await?
@@ -83,6 +87,7 @@ async fn lookup_taxon_by_id(id: i32) -> Result<Taxon> {
         .ok_or_else(|| anyhow::anyhow!("No taxon found for id: {}", id))
 }
 
+#[instrument(name = "fetch-bulk", skip(ids))]
 async fn lookup_taxon_by_ids(ids: &[i32]) -> Result<Vec<Taxon>> {
     if ids.is_empty() {
         anyhow::bail!("Need at least one Taxon ID to look up");
@@ -105,6 +110,7 @@ async fn lookup_taxon_by_ids(ids: &[i32]) -> Result<Vec<Taxon>> {
     lookup_taxon(request).await
 }
 
+#[instrument(name = "fetch")]
 async fn lookup_taxon_by_name(name: &str) -> Result<Taxon> {
     // TODO: Debug logging
     let request = surf::post("https://api.inaturalist.org/v2/taxa/autocomplete")
@@ -124,6 +130,7 @@ async fn lookup_taxon_by_name(name: &str) -> Result<Taxon> {
         .ok_or_else(|| anyhow::anyhow!("No taxon found for name: {}", name))
 }
 
+#[instrument(name = "lookup-bulk")]
 pub async fn get_taxon_by_ids(ids: &[i32]) -> Result<Vec<Taxon>> {
     let taxon_cache = INATURALIST_CACHE.open_tree(INAT_TAXON_CACHE_TREE)?;
 
@@ -167,6 +174,7 @@ pub async fn get_taxon_by_ids(ids: &[i32]) -> Result<Vec<Taxon>> {
     Ok(result)
 }
 
+#[instrument(name = "lookup", skip(offline))]
 pub async fn get_taxon_by_id(id: i32, offline: bool) -> Result<Taxon> {
     let taxon_cache = INATURALIST_CACHE.open_tree(INAT_TAXON_CACHE_TREE)?;
 
@@ -183,6 +191,7 @@ pub async fn get_taxon_by_id(id: i32, offline: bool) -> Result<Taxon> {
     }
 }
 
+#[instrument(name = "lookup", skip(offline))]
 pub async fn get_taxon_by_name(scientific_name: &str, offline: bool) -> Result<Taxon> {
     let taxon_cache = INATURALIST_CACHE.open_tree(INAT_TAXON_CACHE_TREE)?;
     let name_cache = INATURALIST_CACHE.open_tree(INAT_NAME_CACHE_TREE)?;

@@ -13,7 +13,7 @@ pub use helpers::*;
 pub use types::*;
 
 static INAT_API_LIMIT: Lazy<RateLimiter<NotKeyed, InMemoryState, QuantaClock>> =
-    Lazy::new(|| RateLimiter::direct(Quota::per_second(nonzero!(1u32))));
+    Lazy::new(|| RateLimiter::direct(Quota::per_minute(nonzero!(60u32))));
 
 static INATURALIST_CACHE: Lazy<sled::Db> = Lazy::new(|| {
     let cache_dir = dirs::cache_dir()

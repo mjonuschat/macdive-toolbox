@@ -1,16 +1,17 @@
 use crate::arguments::{MacdiveImportFormat, PrepareImportOptions};
+use crate::helpers::progress::header;
 use crate::inaturalist::{Taxon, TaxonCategoryName, TaxonGroupName};
 use crate::macdive;
 use crate::macdive::models::CritterUpdate;
 use crate::parsers::species::sanitize_species_name;
 use crate::types::{CritterCategoryConfig, CritterConfig};
 use futures::StreamExt;
-use indicatif::ProgressBar;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
+use tracing::instrument;
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 struct CritterItem {
@@ -319,60 +320,73 @@ pub(crate) async fn critter_import(
     config: &CritterConfig,
     offline: bool,
 ) -> anyhow::Result<()> {
-    let file = File::open(&options.source)?;
-    let reader = BufReader::new(file).lines();
-    let names: Vec<String> = reader
-        .filter_map(Result::ok)
-        .map(|line| line.trim().to_string())
-        .filter(|line| !line.is_empty())
-        .map(|line| {
-            config
-                .name_substitutions
-                .get(&line)
-                .map_or(line, |v| v.to_string())
-        })
-        .filter_map(|name| sanitize_species_name(&name).ok())
-        .collect();
+    #[instrument(name = "gathering species", skip_all)]
+    fn _import(
+        options: &PrepareImportOptions,
+        config: &CritterConfig,
+    ) -> anyhow::Result<Vec<String>> {
+        let file = File::open(&options.source)?;
+        let reader = BufReader::new(file).lines();
 
-    let pb = ProgressBar::new(names.len() as u64);
-    let results = futures::stream::iter(names)
-        .filter_map(|scientific_name| {
-            let scientific_name = scientific_name;
-            pb.inc(1);
-            async move {
-                if let Ok(taxon) =
-                    crate::inaturalist::get_taxon_by_name(&scientific_name, offline).await
-                {
-                    if let Ok(group_name) = taxon.group_name(&config.categories, offline).await {
-                        return Some((taxon, group_name, scientific_name));
-                    }
-                    Some((taxon, TaxonGroupName::Unspecified, scientific_name))
-                } else {
-                    tracing::debug!(
-                        scientific_name = scientific_name.as_str(),
-                        "Taxon lookup failed"
-                    );
-                    if options.skip_invalid {
-                        return None;
-                    }
-                    Some((
-                        Taxon {
-                            name: Some(scientific_name.clone()),
-                            preferred_common_name: None,
-                            ..Default::default()
-                        },
-                        TaxonGroupName::Unspecified,
-                        scientific_name,
-                    ))
-                }
+        Ok(reader
+            .filter_map(Result::ok)
+            .map(|line| line.trim().to_string())
+            .filter(|line| !line.is_empty())
+            .map(|line| {
+                config
+                    .name_substitutions
+                    .get(&line)
+                    .map_or(line, |v| v.to_string())
+            })
+            .filter_map(|name| sanitize_species_name(&name).ok())
+            .collect())
+    }
+
+    async fn _lookup(
+        scientific_name: String,
+        categories: &CritterCategoryConfig,
+        skip_invalid: bool,
+        offline: bool,
+    ) -> Option<(Taxon, TaxonGroupName, String)> {
+        if let Ok(taxon) = crate::inaturalist::get_taxon_by_name(&scientific_name, offline).await {
+            if let Ok(group_name) = taxon.group_name(&categories, offline).await {
+                return Some((taxon, group_name, scientific_name));
             }
-        })
+            Some((taxon, TaxonGroupName::Unspecified, scientific_name))
+        } else {
+            tracing::debug!(
+                scientific_name = scientific_name.as_str(),
+                "Taxon lookup failed"
+            );
+            if skip_invalid {
+                return None;
+            }
+            Some((
+                Taxon {
+                    name: Some(scientific_name.clone()),
+                    preferred_common_name: None,
+                    ..Default::default()
+                },
+                TaxonGroupName::Unspecified,
+                scientific_name,
+            ))
+        }
+    }
+    let _header_span = header("critters prepare-import");
+
+    let names = _import(options, config)?;
+
+    // let pb = ProgressBar::new(names.len() as u64);
+    let results = futures::stream::iter(names)
+        .map(|name| _lookup(name, &config.categories, options.skip_invalid, offline))
+        .buffer_unordered(20)
         .collect::<Vec<_>>()
         .await;
 
     let critters = Critters {
         critter: results
             .into_iter()
+            .flatten()
             .map(|(taxon, group_name, original_name)| CritterItem {
                 name: taxon
                     .preferred_common_name
