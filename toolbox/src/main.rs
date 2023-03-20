@@ -19,7 +19,9 @@ mod parsers;
 mod types;
 
 use crate::arguments::{CritterCommands, LightroomCommands, MtpCommands};
+use crate::helpers::database;
 use arguments::{Cli, Commands};
+use migration::{Migrator, MigratorTrait};
 
 fn setup_logging(verbose: u8) -> Result<()> {
     let log_level = match verbose {
@@ -83,7 +85,7 @@ fn setup_logging(verbose: u8) -> Result<()> {
         .with(indicatif_layer)
         .with(
             Targets::default()
-                .with_target("macdive_exporter", log_level)
+                .with_target("macdive_toolbox", log_level)
                 .with_target("surf", LevelFilter::OFF),
         )
         .init();
@@ -94,8 +96,11 @@ fn setup_logging(verbose: u8) -> Result<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Cli::parse();
-
     setup_logging(args.verbose)?;
+
+    // Apply all pending migrations
+    let db = database::connect().await?;
+    Migrator::up(db, None).await?;
 
     match &args.command {
         Commands::Lightroom { command, options } => match command {
@@ -135,5 +140,6 @@ async fn main() -> Result<()> {
             MtpCommands::Sync(params) => commands::mtp::sync(options, params)?,
         },
     }
+
     Ok(())
 }

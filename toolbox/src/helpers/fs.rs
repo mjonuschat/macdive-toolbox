@@ -4,7 +4,7 @@ use walkdir::{DirEntry, WalkDir};
 
 const ACTIVITY_FILE_TYPES: [&str; 3] = ["fit", "gpx", "tcx"];
 
-pub fn create_output_dir(path: &Path) -> Result<(), PathError> {
+pub(crate) fn create_dir(path: &Path) -> Result<(), PathError> {
     match std::fs::metadata(path) {
         Ok(metadata) => {
             if metadata.is_dir() {

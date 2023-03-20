@@ -1,4 +1,5 @@
 use crate::arguments::{MacdiveImportFormat, PrepareImportOptions};
+use crate::helpers::globalnames;
 use crate::helpers::progress::header;
 use crate::inaturalist::{Taxon, TaxonCategoryName, TaxonGroupName};
 use crate::macdive;
@@ -348,14 +349,22 @@ pub(crate) async fn critter_import(
         skip_invalid: bool,
         offline: bool,
     ) -> Option<(Taxon, TaxonGroupName, String)> {
-        if let Ok(taxon) = crate::inaturalist::get_taxon_by_name(&scientific_name, offline).await {
-            if let Ok(group_name) = taxon.group_name(&categories, offline).await {
-                return Some((taxon, group_name, scientific_name));
+        let current_name = if offline {
+            scientific_name
+        } else {
+            globalnames::normalize(&scientific_name)
+                .await
+                .unwrap_or(scientific_name)
+        };
+
+        if let Ok(taxon) = crate::inaturalist::get_taxon_by_name(&current_name, offline).await {
+            if let Ok(group_name) = taxon.group_name(categories, offline).await {
+                return Some((taxon, group_name, current_name));
             }
-            Some((taxon, TaxonGroupName::Unspecified, scientific_name))
+            Some((taxon, TaxonGroupName::Unspecified, current_name))
         } else {
             tracing::debug!(
-                scientific_name = scientific_name.as_str(),
+                scientific_name = current_name.as_str(),
                 "Taxon lookup failed"
             );
             if skip_invalid {
@@ -363,12 +372,12 @@ pub(crate) async fn critter_import(
             }
             Some((
                 Taxon {
-                    name: Some(scientific_name.clone()),
+                    name: Some(current_name.clone()),
                     preferred_common_name: None,
                     ..Default::default()
                 },
                 TaxonGroupName::Unspecified,
-                scientific_name,
+                current_name,
             ))
         }
     }

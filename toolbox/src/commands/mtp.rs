@@ -28,7 +28,7 @@ pub(crate) fn sync(config: &MtpOptions, options: &MtpSyncOptions) -> Result<()> 
             .template("[{elapsed_precise}] {bar:40} {pos:>7}/{len:7} {msg}")?,
     );
 
-    fs::create_output_dir(&dst_folder)?;
+    fs::create_dir(&dst_folder)?;
     let existing = fs::read_existing_activities(&dst_folder);
 
     for file in files {
