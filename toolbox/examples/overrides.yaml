@@ -181,6 +181,8 @@ locations:
     locality: San Miguel Island
 critters:
   name_substitutions:
+    "Remora sp.": "Echeneis naucrates"
+    "Plagiotremus flavus": "Plagiotremus laudandus"
     "Brucecaris attenuatus": "Crinotonia attenuatus"
     "Arachnoides Archaster typicus": "Archaster typicus"
     "Bulaceros Bursatella leachii": "Bursatella leachii"

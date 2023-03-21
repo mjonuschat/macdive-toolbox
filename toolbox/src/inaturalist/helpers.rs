@@ -1,38 +1,72 @@
 use std::collections::HashSet;
 use std::time::Duration;
 
+use crate::helpers::database;
 use crate::inaturalist::{
     types::ResultsTaxa, types::TaxaAutocompleteQuery, types::Taxon, types::TAXON_FIELDS,
-    INATURALIST_CACHE, INAT_API_LIMIT,
+    INAT_API_LIMIT,
 };
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
+use entity::taxon_cache;
 use governor::Jitter;
 use itertools::Itertools;
+use sea_orm::prelude::*;
+use sea_orm::{sea_query::OnConflict, QuerySelect, QueryTrait, Set};
 use surf::{http::mime, RequestBuilder};
 use tracing::instrument;
 
-const INAT_TAXON_CACHE_TREE: &str = "taxa";
-const INAT_NAME_CACHE_TREE: &str = "names";
+enum CacheLookupKey<'a> {
+    Id(i32),
+    Name(&'a str),
+}
 
 #[instrument(name = "cache-taxon", skip(taxon))]
-fn cache_taxon(taxon: &Taxon, original_name: Option<&str>) -> Result<()> {
-    let taxon_cache = INATURALIST_CACHE.open_tree(INAT_TAXON_CACHE_TREE)?;
-    let name_cache = INATURALIST_CACHE.open_tree(INAT_NAME_CACHE_TREE)?;
+async fn cache_taxon(taxon: &Taxon, matched_name: Option<&str>) -> Result<()> {
+    let matched_name = matched_name
+        .or(taxon.name.as_deref())
+        .ok_or(anyhow!("No name information available"))?;
 
-    let taxon_id = taxon.id.to_le_bytes();
-    let taxon_name = taxon.name.clone().map_or_else(
-        || Err(anyhow::anyhow!("No name found")),
-        |v| Ok(v.to_lowercase()),
-    )?;
-
-    taxon_cache.insert(taxon_id, rmp_serde::encode::to_vec(&taxon)?)?;
-    name_cache.insert(taxon_name, &taxon_id)?;
-
-    if let Some(name) = original_name {
-        name_cache.insert(name.trim().to_lowercase(), &taxon_id)?;
-    }
-
+    let db = database::connect().await?;
+    let cache_record = taxon_cache::ActiveModel {
+        taxon_id: Set(taxon.id),
+        matched_name: Set(matched_name.to_string()),
+        taxon: Set(serde_json::to_value(taxon)?),
+        downloaded_at: Set(chrono::Utc::now()),
+        ..Default::default()
+    };
+    taxon_cache::Entity::insert(cache_record)
+        .on_conflict(
+            OnConflict::columns([taxon_cache::Column::TaxonId])
+                .update_columns([
+                    taxon_cache::Column::MatchedName,
+                    taxon_cache::Column::Taxon,
+                    taxon_cache::Column::DownloadedAt,
+                ])
+                .to_owned(),
+        )
+        .exec(db)
+        .await?;
     Ok(())
+}
+
+async fn cached_taxon(key: CacheLookupKey<'_>) -> Result<Option<Taxon>> {
+    let db = database::connect().await?;
+    let (id, name) = match key {
+        CacheLookupKey::Id(id) => (Some(id), None),
+        CacheLookupKey::Name(name) => (None, Some(name)),
+    };
+
+    let result = taxon_cache::Entity::find()
+        .apply_if(id, |query, v| {
+            query.filter(taxon_cache::Column::TaxonId.eq(v))
+        })
+        .apply_if(name, |query, v| {
+            query.filter(taxon_cache::Column::MatchedName.eq(v))
+        })
+        .one(db)
+        .await?;
+
+    Ok(result.and_then(|record| serde_json::from_value(record.taxon).ok()))
 }
 
 #[instrument(name = "cache-species", skip_all)]
@@ -87,7 +121,6 @@ async fn lookup_taxon_by_id(id: i32) -> Result<Taxon> {
         .ok_or_else(|| anyhow::anyhow!("No taxon found for id: {}", id))
 }
 
-#[instrument(name = "fetch-bulk", skip(ids))]
 async fn lookup_taxon_by_ids(ids: &[i32]) -> Result<Vec<Taxon>> {
     if ids.is_empty() {
         anyhow::bail!("Need at least one Taxon ID to look up");
@@ -132,22 +165,20 @@ async fn lookup_taxon_by_name(name: &str) -> Result<Taxon> {
 
 #[instrument(name = "lookup-bulk")]
 pub async fn get_taxon_by_ids(ids: &[i32]) -> Result<Vec<Taxon>> {
-    let taxon_cache = INATURALIST_CACHE.open_tree(INAT_TAXON_CACHE_TREE)?;
+    let db = database::connect().await?;
+
+    let cache_ids: HashSet<i32> = taxon_cache::Entity::find()
+        .select_only()
+        .column(taxon_cache::Column::TaxonId)
+        .filter(taxon_cache::Column::TaxonId.is_in(ids.to_vec()))
+        .into_tuple()
+        .all(db)
+        .await?
+        .iter()
+        .map(|(id,)| *id)
+        .collect();
 
     let wanted_ids = ids.iter().copied().collect::<HashSet<i32>>();
-
-    let cache_ids = wanted_ids
-        .iter()
-        .filter_map(|id| match taxon_cache.contains_key(id.to_le_bytes()) {
-            Ok(true) => Some(*id),
-            Ok(false) => None,
-            Err(e) => {
-                tracing::error!(id = id, "Error during iNaturalist cache lookup: {e}");
-                None
-            }
-        })
-        .collect::<HashSet<i32>>();
-
     let missing_ids: Vec<_> = wanted_ids.difference(&cache_ids).copied().collect();
 
     if !missing_ids.is_empty() {
@@ -155,37 +186,33 @@ pub async fn get_taxon_by_ids(ids: &[i32]) -> Result<Vec<Taxon>> {
             let ids: Vec<i32> = chunk.copied().collect();
             let taxa = lookup_taxon_by_ids(&ids).await?;
             for taxon in taxa {
-                cache_taxon(&taxon, None)?;
+                cache_taxon(&taxon, None).await?;
             }
         }
     }
 
-    let result = wanted_ids
-        .iter()
-        .filter_map(|v| taxon_cache.get(v.to_le_bytes()).ok())
-        .filter_map(|v| {
-            v.map(|v| {
-                let result: Result<Taxon> = rmp_serde::from_slice(&v).map_err(|e| e.into());
-                result
-            })
+    taxon_cache::Entity::find()
+        .filter(taxon_cache::Column::TaxonId.is_in(ids.to_vec()))
+        .all(db)
+        .await?
+        .into_iter()
+        .map(|model| {
+            serde_json::from_value(model.taxon)
+                .map_err(|e| anyhow!("Error deserializing cached taxon data: {e}"))
         })
-        .collect::<Result<Vec<Taxon>>>()?;
-
-    Ok(result)
+        .collect::<Result<Vec<Taxon>>>()
 }
 
 #[instrument(name = "lookup", skip(offline))]
 pub async fn get_taxon_by_id(id: i32, offline: bool) -> Result<Taxon> {
-    let taxon_cache = INATURALIST_CACHE.open_tree(INAT_TAXON_CACHE_TREE)?;
-
-    match taxon_cache.get(id.to_le_bytes())? {
-        Some(ref buf) => rmp_serde::from_slice(buf).map_err(|e| e.into()),
+    match cached_taxon(CacheLookupKey::Id(id)).await? {
+        Some(taxon) => Ok(taxon),
         None => {
             if offline {
                 bail!("Running in offline mode - taxon lookup disabled");
             }
             let taxon = lookup_taxon_by_id(id).await?;
-            cache_taxon(&taxon, None)?;
+            cache_taxon(&taxon, None).await?;
             Ok(taxon)
         }
     }
@@ -193,29 +220,14 @@ pub async fn get_taxon_by_id(id: i32, offline: bool) -> Result<Taxon> {
 
 #[instrument(name = "lookup", skip(offline))]
 pub async fn get_taxon_by_name(scientific_name: &str, offline: bool) -> Result<Taxon> {
-    let taxon_cache = INATURALIST_CACHE.open_tree(INAT_TAXON_CACHE_TREE)?;
-    let name_cache = INATURALIST_CACHE.open_tree(INAT_NAME_CACHE_TREE)?;
-
-    let name_key = scientific_name.trim().to_lowercase();
-    let result: Option<Taxon> = match name_cache.get(name_key)? {
-        Some(taxon_key) => {
-            let buf = taxon_cache.get(taxon_key)?;
-            match buf {
-                Some(ref buf) => rmp_serde::from_slice(buf)?,
-                None => None,
-            }
-        }
-        None => None,
-    };
-
-    match result {
+    match cached_taxon(CacheLookupKey::Name(scientific_name)).await? {
         Some(taxon) => Ok(taxon),
         None => {
             if offline {
                 bail!("Running in offline mode - taxon lookup disabled");
             }
             let taxon = lookup_taxon_by_name(scientific_name).await?;
-            cache_taxon(&taxon, Some(scientific_name))?;
+            cache_taxon(&taxon, Some(scientific_name)).await?;
             Ok(taxon)
         }
     }

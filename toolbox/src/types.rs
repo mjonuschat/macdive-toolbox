@@ -10,7 +10,7 @@ use serde_derive::{Deserialize, Serialize};
 use sqlx::{Pool, Sqlite};
 use uuid::Uuid;
 
-pub(crate) const APPLICATION_NAME: &'static str = "MacDive Toolbox";
+pub(crate) const APPLICATION_NAME: &str = "MacDive Toolbox";
 
 use crate::errors::{ConversionError, GeocodingError};
 use crate::inaturalist::TaxonGroupName;

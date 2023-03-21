@@ -357,28 +357,32 @@ pub(crate) async fn critter_import(
                 .unwrap_or(scientific_name)
         };
 
-        if let Ok(taxon) = crate::inaturalist::get_taxon_by_name(&current_name, offline).await {
-            if let Ok(group_name) = taxon.group_name(categories, offline).await {
-                return Some((taxon, group_name, current_name));
+        match crate::inaturalist::get_taxon_by_name(&current_name, offline).await {
+            Ok(taxon) => {
+                if let Ok(group_name) = taxon.group_name(categories, offline).await {
+                    return Some((taxon, group_name, current_name));
+                }
+                Some((taxon, TaxonGroupName::Unspecified, current_name))
             }
-            Some((taxon, TaxonGroupName::Unspecified, current_name))
-        } else {
-            tracing::debug!(
-                scientific_name = current_name.as_str(),
-                "Taxon lookup failed"
-            );
-            if skip_invalid {
-                return None;
+            Err(e) => {
+                tracing::error!(
+                    scientific_name = current_name.as_str(),
+                    reason = e.to_string(),
+                    "Taxon lookup failed"
+                );
+                if skip_invalid {
+                    return None;
+                }
+                Some((
+                    Taxon {
+                        name: Some(current_name.clone()),
+                        preferred_common_name: None,
+                        ..Default::default()
+                    },
+                    TaxonGroupName::Unspecified,
+                    current_name,
+                ))
             }
-            Some((
-                Taxon {
-                    name: Some(current_name.clone()),
-                    preferred_common_name: None,
-                    ..Default::default()
-                },
-                TaxonGroupName::Unspecified,
-                current_name,
-            ))
         }
     }
     let _header_span = header("critters prepare-import");

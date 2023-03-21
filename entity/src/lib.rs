@@ -2,4 +2,5 @@
 
 pub mod prelude;
 
+pub mod taxon_cache;
 pub mod verified_name;
