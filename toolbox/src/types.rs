@@ -181,14 +181,18 @@ impl TryInto<DiveSite> for crate::macdive::models::DiveSite {
             .country
             .clone()
             .map(|c| {
-                if c == *"Netherlands Antilles" {
-                    String::from("Bonaire")
-                } else {
-                    c
+                match c.as_str() {
+                    "Netherlands Antilles" => String::from("Bonaire"),
+                    "Solomon Islands" => String::from("SolomonIslands"),
+                    _ => c,
                 }
             })
             .ok_or(ConversionError::MissingCountry)
-            .and_then(|v| celes::Country::from_str(&v).map_err(ConversionError::UnknownCountry))?;
+            .and_then(|v| {
+                celes::Country::from_str(&v).map_err(|_result| {
+                    ConversionError::UnknownCountry(v.to_string())
+                })
+            })?;
 
         Ok(DiveSite {
             uuid: self

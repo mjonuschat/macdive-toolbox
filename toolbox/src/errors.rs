@@ -8,8 +8,8 @@ pub enum ConversionError {
     InvalidUuid(#[from] uuid::Error),
     #[error("The MacDive dive site is missing country information")]
     MissingCountry,
-    #[error("The MacDive dive site is using an unknown country name")]
-    UnknownCountry(&'static str),
+    #[error("The MacDive dive site is using an unknown country name: `{0}`")]
+    UnknownCountry(String),
     #[error("The MacDive dive site is missing latitude information")]
     MissingLatitude,
     #[error("The MacDive dive site is missing longitude information")]
