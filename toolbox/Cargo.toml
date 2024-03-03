@@ -15,40 +15,40 @@ celes = "2.4.0"
 change-case = "0.2.0"
 chrono = "0.4.19"
 clap = { version = "4.1.8", features = [ "derive" ] }
+comfy-table = "7.1.0"
 console = "0.15.5"
-dirs = "4.0.0"
+csv = "1.2.1"
+dirs = "5.0.1"
+entity = { path = "../entity" }
 futures = "0.3.16"
-geo = "0.24.0"
+geo = { version = "0.28.0", features = ["serde"] }
 google_maps = "3.1.1"
-governor = "0.5.1"
+governor = "0.6.3"
 indicatif = "0.17.3"
-itertools = "0.10.1"
+itertools = "0.12.1"
 libmtp-rs = { version = "0.7.7", git = "https://github.com/quebin31/libmtp-rs.git" }
 maplit = "1.0.2"
+migration = { path = "../migration" }
+nom = "7.1.3"
 nonzero_ext = "0.3.0"
 once_cell = "1.7.2"
-comfy-table = "6.0.0-rc.1"
 ptree = "0.4.0"
 regex = "1.4.5"
 rust_decimal = "1.9.0"
 rust_decimal_macros = "1.9.0"
+sea-orm = { version = "0.12.14", features = ["runtime-tokio-native-tls", "sqlx-sqlite"] }
 serde = { version = "1.0.126", features = ["derive"] }
 serde_derive = "1.0.125"
 serde_json = "1.0.64"
 serde_yaml = "0.9.19"
+sqlx = { version = "0.7.3", features = [ "sqlite", "runtime-tokio-native-tls", "uuid", "json", "chrono" ] }
+strum = { version = "0.26.1", features = ["derive"] }
 surf = "2.2.0"
-sqlx = { version = "0.6.2", features = [ "sqlite", "runtime-tokio-native-tls", "uuid", "json", "chrono" ] }
 thiserror = "1.0.24"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
+tracing-indicatif = "0.3.0"
 tracing-subscriber = "0.3"
 uuid = { version = "1.3.0", features = ["serde", "v4"] }
 walkdir = "2.3.2"
 xml_serde = "1.4.1"
-csv = "1.2.1"
-nom = "7.1.3"
-tracing-indicatif = "0.3.0"
-sea-orm = { version = "0.11.1", features = ["runtime-tokio-native-tls", "sqlx-sqlite"] }
-strum = { version = "0.24.1", features = ["derive"] }
-entity = { path = "../entity" }
-migration = { path = "../migration" }

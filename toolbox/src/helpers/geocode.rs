@@ -44,7 +44,7 @@ pub fn apply_overrides(
     Ok(site)
 }
 pub async fn geocode_site(site: DiveSite, key: &str) -> Result<DiveSite, GeocodingError> {
-    let client = ClientSettings::new(key);
+    let client = ClientSettings::try_new(key).map_err(|_e| GeocodingError::GoogleMaps)?;
     let latlng: LatLng = site.clone().try_into()?;
 
     let location = client
