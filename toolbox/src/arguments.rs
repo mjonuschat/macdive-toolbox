@@ -94,7 +94,6 @@ pub(crate) enum LightroomCommands {
 }
 
 #[derive(Clone, Debug, clap::Args)]
-#[clap(args_conflicts_with_subcommands = true)]
 pub(crate) struct LightroomOptions {
     /// Path to the Lightroom Settings directory
     #[clap(short, long, value_hint=ValueHint::DirPath)]
@@ -118,7 +117,6 @@ pub(crate) enum CritterCommands {
 }
 
 #[derive(Debug, clap::Args)]
-#[clap(args_conflicts_with_subcommands = true)]
 pub(crate) struct PrepareImportOptions {
     /// File format
     #[clap(long, default_value_t = false)]
@@ -155,7 +153,6 @@ pub(crate) enum MtpCommands {
 }
 
 #[derive(Clone, Debug, clap::Args)]
-#[clap(args_conflicts_with_subcommands = true)]
 pub(crate) struct MtpOptions {
     /// Select device by model name
     #[clap(short, long, conflicts_with_all=&["manufacturer", "serial"])]
@@ -169,7 +166,6 @@ pub(crate) struct MtpOptions {
 }
 
 #[derive(Debug, clap::Args)]
-#[clap(args_conflicts_with_subcommands = true)]
 pub struct MtpSyncOptions {
     /// Path to the activity files on the MTP device
     #[clap(short, long, value_hint=ValueHint::DirPath, default_value = ACTIVITY_DIR)]
