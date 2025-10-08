@@ -36,12 +36,12 @@ ptree = "0.4.0"
 regex = "1.4.5"
 rust_decimal = "1.9.0"
 rust_decimal_macros = "1.9.0"
-sea-orm = { version = "0.12.14", features = ["runtime-tokio-native-tls", "sqlx-sqlite"] }
+sea-orm = { version = "1.0", features = ["runtime-tokio-native-tls", "sqlx-sqlite"] }
 serde = { version = "1.0.126", features = ["derive"] }
 serde_derive = "1.0.125"
 serde_json = "1.0.64"
 serde_yaml = "0.9.19"
-sqlx = { version = "0.7.3", features = [ "sqlite", "runtime-tokio-native-tls", "uuid", "json", "chrono" ] }
+sqlx = { version = "0.8.6", features = [ "sqlite", "runtime-tokio-native-tls", "uuid", "json", "chrono" ] }
 strum = { version = "0.26.1", features = ["derive"] }
 surf = "2.2.0"
 thiserror = "1.0.24"
