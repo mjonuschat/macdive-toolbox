@@ -34,6 +34,10 @@ pub enum Error {
     InvalidUuid(#[from] uuid::Error),
     #[error("error parsing existing Lightroom template")]
     LightroomParsing,
+    #[error("MTP device error: {0}")]
+    Mtp(String),
+    #[error("MTP storage error: folder not found: {0}")]
+    MtpFolderNotFound(String),
 }
 
 /// Convenience alias used throughout the core crate.

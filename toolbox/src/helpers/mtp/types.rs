@@ -1,12 +1,6 @@
 use crate::arguments::MtpOptions;
 
-#[derive(Debug)]
-pub enum DeviceSelector {
-    First,
-    ManufacturerName(String),
-    ModelName(String),
-    SerialNumber(String),
-}
+pub use macdive_toolbox_core::services::mtp::DeviceSelector;
 
 impl From<MtpOptions> for DeviceSelector {
     fn from(params: MtpOptions) -> Self {

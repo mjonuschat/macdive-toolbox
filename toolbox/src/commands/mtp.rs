@@ -6,11 +6,11 @@ use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
 
 pub(crate) fn detect(verbose: u8) -> Result<()> {
-    mtp::detect(verbose)
+    Ok(mtp::detect(verbose)?)
 }
 
 pub(crate) fn listfiles(selector: mtp::types::DeviceSelector, verbose: bool) -> Result<()> {
-    mtp::filetree(selector, verbose)
+    Ok(mtp::filetree(selector, verbose)?)
 }
 
 pub(crate) fn sync(config: &MtpOptions, options: &MtpSyncOptions) -> Result<()> {

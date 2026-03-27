@@ -2922,6 +2922,7 @@ name = "macdive-toolbox-core"
 version = "0.1.0"
 dependencies = [
  "askama",
+ "bytefmt",
  "celes",
  "change-case",
  "chrono",
@@ -2929,9 +2930,12 @@ dependencies = [
  "geo",
  "google_maps",
  "governor",
+ "indicatif",
  "itertools 0.14.0",
+ "libmtp-rs",
  "nom 8.0.0",
  "nonzero_ext",
+ "ptree",
  "regex",
  "reqwest",
  "rust_decimal",

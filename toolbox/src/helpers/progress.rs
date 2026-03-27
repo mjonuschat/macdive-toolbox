@@ -1,25 +1,6 @@
-use indicatif::{ProgressBar, ProgressState, ProgressStyle};
+use indicatif::{ProgressState, ProgressStyle};
 use tracing::{Span, info_span};
 use tracing_indicatif::span_ext::IndicatifSpanExt;
-
-pub(crate) fn create_spinner(msg: &str) -> anyhow::Result<ProgressBar> {
-    let pb = ProgressBar::new_spinner();
-    pb.set_style(
-        ProgressStyle::default_spinner()
-            .tick_strings(&[
-                "▹▹▹▹▹",
-                "▸▹▹▹▹",
-                "▹▸▹▹▹",
-                "▹▹▸▹▹",
-                "▹▹▹▸▹",
-                "▹▹▹▹▸",
-                "▪▪▪▪▪",
-            ])
-            .template("{msg} {spinner:.blue}")?,
-    );
-    pb.set_message(msg.to_owned());
-    Ok(pb)
-}
 
 pub(crate) fn elapsed_subsec(state: &ProgressState, writer: &mut dyn std::fmt::Write) {
     let seconds = state.elapsed().as_secs();
