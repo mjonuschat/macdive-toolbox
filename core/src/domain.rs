@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
+use chrono::{DateTime, NaiveDate, TimeDelta, Utc};
 use google_maps::LatLng;
 use rust_decimal::{Decimal, prelude::FromPrimitive};
 use rust_decimal_macros::dec;
@@ -12,6 +13,32 @@ use uuid::Uuid;
 use crate::error::Error;
 
 pub const APPLICATION_NAME: &str = "MacDive Toolbox";
+
+/// Convert an Apple NSDate timestamp (seconds since 2001-01-01) to a chrono `DateTime`.
+///
+/// Apple Core Data stores dates as floating-point seconds since the
+/// reference date 2001-01-01T00:00:00Z (the Cocoa/CF time epoch).
+///
+/// # Arguments
+///
+/// * `timestamp` - Seconds since 2001-01-01T00:00:00Z as stored in Core Data.
+///
+/// # Examples
+///
+/// ```
+/// use macdive_toolbox_core::domain::nsdate_to_datetime;
+/// let dt = nsdate_to_datetime(0.0);
+/// assert_eq!(dt.to_rfc3339(), "2001-01-01T00:00:00+00:00");
+/// ```
+pub fn nsdate_to_datetime(timestamp: f64) -> DateTime<Utc> {
+    // The Apple Core Data epoch starts on 2001-01-01, not the Unix epoch (1970-01-01).
+    let epoch = NaiveDate::from_ymd_opt(2001, 1, 1)
+        .expect("2001-01-01 is a valid date")
+        .and_hms_opt(0, 0, 0)
+        .expect("00:00:00 is a valid time")
+        .and_utc();
+    epoch + TimeDelta::milliseconds((timestamp * 1000.0) as i64)
+}
 
 pub trait DecimalToDms {
     fn to_dms(&self) -> Result<String, Error>;
@@ -360,5 +387,21 @@ mod tests {
             "33°51'22.1724\" S 151°12'54.9216\" E",
             latlng.to_dms().unwrap()
         );
+    }
+
+    #[test]
+    fn test_nsdate_epoch() {
+        // Timestamp 0.0 must map exactly to the Apple Core Data epoch: 2001-01-01T00:00:00Z.
+        let dt = nsdate_to_datetime(0.0);
+        assert_eq!(dt.to_rfc3339(), "2001-01-01T00:00:00+00:00");
+    }
+
+    #[test]
+    fn test_nsdate_known_value() {
+        // 2024-03-15T12:00:00Z expressed as seconds since 2001-01-01T00:00:00Z.
+        // Days from 2001-01-01 to 2024-03-15: 8474 days * 86400 s + 43200 s (12h)
+        let seconds = (8474.0_f64 * 86_400.0) + 43_200.0;
+        let dt = nsdate_to_datetime(seconds);
+        assert_eq!(dt.to_rfc3339(), "2024-03-15T12:00:00+00:00");
     }
 }
