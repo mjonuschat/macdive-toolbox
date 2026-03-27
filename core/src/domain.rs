@@ -275,7 +275,7 @@ pub struct DiveSite {
     pub longitude: f64,
     /// Altitude in meters of a WGS84 based position of this Location
     pub altitude: f32,
-    /// The name of the bod of water where the image was created.
+    /// The name of the body of water where the image was created.
     pub body_of_water: Option<String>,
     /// MacDive Primary ID
     pub site_id: i64,
@@ -288,5 +288,77 @@ impl TryFrom<DiveSite> for LatLng {
         let lat = Decimal::from_f64(site.latitude).ok_or(Error::InvalidLatitude)?;
         let lng = Decimal::from_f64(site.longitude).ok_or(Error::InvalidLongitude)?;
         Ok(LatLng { lat, lng })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use google_maps::LatLng;
+    use rust_decimal::Decimal;
+
+    use super::*;
+
+    #[test]
+    fn test_dms_null_island() {
+        // Null Island, Intersection of Prime Meridian and Equator
+        let latlng = LatLng {
+            lat: Decimal::new(0, 0),
+            lng: Decimal::new(0, 0),
+        };
+
+        assert_eq!("0°0'0\" 0°0'0\"", latlng.to_dms().unwrap());
+    }
+
+    #[test]
+    fn test_dms_nw() {
+        // Golden Gate Park, San Francisco, CA, USA
+        let latlng = LatLng {
+            lat: Decimal::new(37769722, 6),
+            lng: Decimal::new(-122476944, 6),
+        };
+
+        assert_eq!(
+            "37°46'10.9992\" N 122°28'36.9984\" W",
+            latlng.to_dms().unwrap()
+        );
+    }
+
+    #[test]
+    fn test_dms_ne() {
+        // The Moscow Kremlin, Moscow, Russia
+        let latlng = LatLng {
+            lat: Decimal::new(55752460, 6),
+            lng: Decimal::new(37617779, 6),
+        };
+
+        assert_eq!("55°45'8.856\" N 37°37'4.0044\" E", latlng.to_dms().unwrap());
+    }
+
+    #[test]
+    fn test_dms_sw() {
+        // Maracanã Stadium, Rio de Janeiro, Brazil
+        let latlng = LatLng {
+            lat: Decimal::new(-22912376, 6),
+            lng: Decimal::new(-43230320, 6),
+        };
+
+        assert_eq!(
+            "22°54'44.5536\" S 43°13'49.152\" W",
+            latlng.to_dms().unwrap()
+        );
+    }
+
+    #[test]
+    fn test_dms_se() {
+        // Sydney Opera House, Sydney, Australia
+        let latlng = LatLng {
+            lat: Decimal::new(-33856159, 6),
+            lng: Decimal::new(151215256, 6),
+        };
+
+        assert_eq!(
+            "33°51'22.1724\" S 151°12'54.9216\" E",
+            latlng.to_dms().unwrap()
+        );
     }
 }
