@@ -22,3 +22,6 @@ target/
 # dotenv
 .env
 .env.*
+
+# Git worktrees
+.worktrees/
