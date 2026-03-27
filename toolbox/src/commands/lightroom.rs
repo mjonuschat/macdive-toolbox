@@ -3,6 +3,7 @@ use console::{Emoji, style};
 use futures::StreamExt;
 use indicatif::ProgressBar;
 use macdive_toolbox_core::db::DatabaseManager;
+use macdive_toolbox_core::macdive::queries;
 use std::convert::TryInto;
 
 use crate::arguments::LightroomOptions;
@@ -62,7 +63,7 @@ pub(crate) async fn export_lightroom_metadata_presets(
         style("[2/4]").bold().dim(),
         DIVING_MASK
     );
-    let sites = macdive_toolbox_core::macdive::queries::sites(db.macdive())
+    let sites = queries::sites(db.macdive())
         .await?
         .into_iter()
         .map(dive_site_from_entity)

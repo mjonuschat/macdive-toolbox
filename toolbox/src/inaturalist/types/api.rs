@@ -1,10 +1,10 @@
 use super::models::*;
 
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::sync::LazyLock;
 
-pub(in crate::inaturalist) static TAXON_FIELDS: Lazy<Value> = Lazy::new(|| {
+pub(in crate::inaturalist) static TAXON_FIELDS: LazyLock<Value> = LazyLock::new(|| {
     json!(
         {
             "fields": {

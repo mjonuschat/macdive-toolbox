@@ -1,4 +1,3 @@
-pub(crate) mod database;
 pub(crate) mod fs;
 pub(crate) mod geocode;
 pub(crate) mod globalnames;

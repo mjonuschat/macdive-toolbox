@@ -11,8 +11,6 @@ use surf::http::mime;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::helpers::database;
-
 const SOURCE_WORMS: usize = 9;
 const SOURCE_GBIF: usize = 11;
 const VERIFIER_URL: &str = "https://verifier.globalnames.org/api/v1/verifications";
@@ -97,8 +95,11 @@ pub async fn verify_name(name: &str) -> anyhow::Result<VerificationResponse> {
     Ok(response)
 }
 
-async fn cache_verified_name(name: &str, data: &VerificationResultData) -> anyhow::Result<()> {
-    let db = database::connect().await?;
+async fn cache_verified_name(
+    db: &DbConn,
+    name: &str,
+    data: &VerificationResultData,
+) -> anyhow::Result<()> {
     let cache_record = verified_name::ActiveModel {
         matched_name: Set(name.to_string()),
         current_name: Set(data.current_canonical_simple.clone()),
@@ -120,9 +121,12 @@ async fn cache_verified_name(name: &str, data: &VerificationResultData) -> anyho
     Ok(())
 }
 
+/// Normalize a species name via the GlobalNames verifier API.
+///
+/// Checks the local cache first (entries valid for 90 days), falling back
+/// to the remote API when necessary. Results are cached for future lookups.
 #[instrument(name = "normalize-name")]
-pub async fn normalize(name: &str) -> anyhow::Result<String> {
-    let db = database::connect().await?;
+pub async fn normalize(db: &DbConn, name: &str) -> anyhow::Result<String> {
     // Check the cache
     let cached_record: Option<verified_name::Model> = VerifiedName::find()
         .filter(verified_name::Column::MatchedName.eq(name))
@@ -142,7 +146,7 @@ pub async fn normalize(name: &str) -> anyhow::Result<String> {
         Some(record) => match record.results.into_iter().next() {
             None => bail!("Matched name without result in response"),
             Some(data) => {
-                cache_verified_name(name, &data).await?;
+                cache_verified_name(db, name, &data).await?;
                 Ok(data.current_canonical_simple)
             }
         },

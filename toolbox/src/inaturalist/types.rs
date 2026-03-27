@@ -6,11 +6,21 @@ use crate::types::CritterCategoryConfig;
 pub(in crate::inaturalist) use api::*;
 pub use macdive_toolbox_core::domain::TaxonGroupName;
 pub use models::*;
+use sea_orm::DbConn;
 
+/// Trait for resolving a taxon's category group name from its ancestry.
 #[async_trait::async_trait]
 pub trait TaxonCategoryName {
+    /// Walk the taxon's ancestor chain and determine its category group name.
+    ///
+    /// # Arguments
+    ///
+    /// * `db` - Cache database connection for ancestor lookups
+    /// * `overrides` - User-supplied category configuration overrides
+    /// * `offline` - When true, only use cached ancestor data
     async fn group_name(
         &self,
+        db: &DbConn,
         overrides: &CritterCategoryConfig,
         offline: bool,
     ) -> anyhow::Result<TaxonGroupName>;
@@ -20,13 +30,14 @@ pub trait TaxonCategoryName {
 impl TaxonCategoryName for Taxon {
     async fn group_name(
         &self,
+        db: &DbConn,
         overrides: &CritterCategoryConfig,
         offline: bool,
     ) -> anyhow::Result<TaxonGroupName> {
         let mut group = TaxonGroupName::Unspecified;
         if let Some(ancestor_ids) = &self.ancestor_ids {
             for ancestor_id in ancestor_ids.iter() {
-                let ancestor = get_taxon_by_id(*ancestor_id, offline).await?;
+                let ancestor = get_taxon_by_id(db, *ancestor_id, offline).await?;
                 match ancestor.rank.as_deref() {
                     Some("phylum") => {
                         if let Some(name) = ancestor.preferred_common_name {

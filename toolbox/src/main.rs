@@ -3,6 +3,7 @@ use clap::Parser;
 use indicatif::{ProgressState, ProgressStyle};
 use macdive_toolbox_core::db::DatabaseManager;
 use macdive_toolbox_core::domain::APPLICATION_NAME;
+use migration::{Migrator, MigratorTrait};
 use std::time::Duration;
 use tracing::Level;
 use tracing_indicatif::IndicatifLayer;
@@ -16,15 +17,11 @@ mod commands;
 mod errors;
 mod helpers;
 mod inaturalist;
-// TODO: Remove once the sqlx code path is deleted (Task 11).
-#[allow(dead_code)]
-mod macdive;
 mod parsers;
 mod types;
 
 use crate::arguments::{CritterCommands, LightroomCommands, MtpCommands};
 use arguments::{Cli, Commands};
-use migration::{Migrator, MigratorTrait};
 
 fn setup_logging(verbose: u8) -> Result<()> {
     let log_level = match verbose {
@@ -111,30 +108,32 @@ async fn main() -> Result<()> {
     let args = Cli::parse();
     setup_logging(args.verbose)?;
 
-    // Create a unified database manager for both MacDive and cache databases.
-    // MTP commands don't touch databases, so creation is deferred for them.
-    let needs_db = !matches!(&args.command, Commands::Mtp { .. });
-    let db = if needs_db {
-        let macdive_path = args.macdive_database()?;
-        let cache_path = cache_db_path()?;
-        let manager = DatabaseManager::new(&macdive_path, &cache_path).await?;
+    // MTP commands don't need database access, so dispatch them early.
+    if let Commands::Mtp { command, options } = &args.command {
+        match command {
+            MtpCommands::Detect => commands::mtp::detect(args.verbose)?,
+            MtpCommands::ListFiles { .. } => {
+                let verbose = args.verbose > 0;
+                commands::mtp::listfiles(options.to_owned().into(), verbose)?
+            }
+            MtpCommands::Sync(params) => commands::mtp::sync(options, params)?,
+        }
+        return Ok(());
+    }
 
-        // Apply all pending migrations on the cache database.
-        Migrator::up(manager.cache(), None).await?;
+    // All remaining commands require database access.
+    let macdive_path = args.macdive_database()?;
+    let cache_path = cache_db_path()?;
+    let db = DatabaseManager::new(&macdive_path, &cache_path).await?;
 
-        Some(manager)
-    } else {
-        None
-    };
+    // Apply all pending migrations on the cache database.
+    Migrator::up(db.cache(), None).await?;
 
     match &args.command {
         Commands::Lightroom { command, options } => match command {
             LightroomCommands::ExportSites { force } => {
-                let db = db
-                    .as_ref()
-                    .expect("DatabaseManager must be initialised for Lightroom commands");
                 commands::lightroom::export_lightroom_metadata_presets(
-                    db,
+                    &db,
                     options,
                     &args.config()?.locations(),
                     *force,
@@ -144,35 +143,27 @@ async fn main() -> Result<()> {
         },
         Commands::Critters { command } => match command {
             CritterCommands::Validate => {
-                let db = db
-                    .as_ref()
-                    .expect("DatabaseManager must be initialised for Critters commands");
-                commands::critters::diff_critters(db, args.offline).await?
+                commands::critters::diff_critters(&db, args.offline).await?
             }
             CritterCommands::ValidateCategories => {
-                let db = db
-                    .as_ref()
-                    .expect("DatabaseManager must be initialised for Critters commands");
                 commands::critters::diff_critter_categories(
-                    db,
+                    &db,
                     &args.config()?.into(),
                     args.offline,
                 )
                 .await?
             }
             CritterCommands::PrepareImport(options) => {
-                commands::critters::critter_import(options, &args.config()?.into(), args.offline)
-                    .await?
+                commands::critters::critter_import(
+                    &db,
+                    options,
+                    &args.config()?.into(),
+                    args.offline,
+                )
+                .await?
             }
         },
-        Commands::Mtp { command, options } => match command {
-            MtpCommands::Detect => commands::mtp::detect(args.verbose)?,
-            MtpCommands::ListFiles { .. } => {
-                let verbose = args.verbose > 0;
-                commands::mtp::listfiles(options.to_owned().into(), verbose)?
-            }
-            MtpCommands::Sync(params) => commands::mtp::sync(options, params)?,
-        },
+        Commands::Mtp { .. } => unreachable!(),
     }
 
     Ok(())

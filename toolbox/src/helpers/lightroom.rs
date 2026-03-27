@@ -5,15 +5,15 @@ use std::convert::{TryFrom, TryInto};
 
 use askama::Template;
 use google_maps::LatLng;
-use once_cell::sync::Lazy;
 use regex::{Regex, RegexBuilder};
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::Path;
+use std::sync::LazyLock;
 use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
 
-static LRTEMPLATE_ID_RE: Lazy<Regex> = Lazy::new(|| {
+static LRTEMPLATE_ID_RE: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(concat!(
         r#"^\s+id\s=\s"(?P<uuid>[0-9a-f]{8}-[0-9a-f]{4}-"#,
         r#"[1-5][0-9a-f]{3}-[89AB][0-9a-f]{3}-[0-9a-f]{12})",$"#
