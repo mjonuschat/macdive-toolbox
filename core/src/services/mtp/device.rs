@@ -4,22 +4,6 @@ use mtp_rs::mtp::{MtpDevice, MtpDeviceInfo};
 
 use crate::error::{Error, Result};
 
-/// Maps an `mtp_rs::Error` into our crate-level `Error::Mtp`.
-///
-/// Checks `is_exclusive_access()` to surface a macOS-specific diagnostic
-/// message when `ptpcamerad` claims the USB interface.
-fn map_mtp_error(e: mtp_rs::Error) -> Error {
-    if e.is_exclusive_access() {
-        Error::Mtp(
-            "device claimed by another process. On macOS, try: \
-             sudo launchctl unload /System/Library/LaunchDaemons/com.apple.ptpcamerad.plist"
-                .to_string(),
-        )
-    } else {
-        Error::Mtp(e.to_string())
-    }
-}
-
 /// Returns all MTP devices currently visible on the USB bus without opening them.
 ///
 /// # Errors
@@ -27,7 +11,7 @@ fn map_mtp_error(e: mtp_rs::Error) -> Error {
 /// Returns `Error::Mtp` if the underlying USB enumeration fails or no device
 /// is attached.
 pub(super) fn list_devices() -> Result<Vec<MtpDeviceInfo>> {
-    let devices = MtpDevice::list_devices().map_err(map_mtp_error)?;
+    let devices = MtpDevice::list_devices().map_err(super::map_mtp_error)?;
     if devices.is_empty() {
         return Err(Error::Mtp("no MTP device attached".to_string()));
     }

@@ -211,19 +211,6 @@ impl Device {
 // Top-level utility functions
 // ---------------------------------------------------------------------------
 
-/// Maps an `mtp_rs::Error` into our crate-level `Error::Mtp`.
-fn map_mtp_error(e: mtp_rs::Error) -> Error {
-    if e.is_exclusive_access() {
-        Error::Mtp(
-            "device claimed by another process. On macOS, try: \
-             sudo launchctl unload /System/Library/LaunchDaemons/com.apple.ptpcamerad.plist"
-                .to_string(),
-        )
-    } else {
-        Error::Mtp(e.to_string())
-    }
-}
-
 /// Detects all attached MTP devices and prints their information.
 ///
 /// `verbose`:
@@ -268,7 +255,7 @@ pub async fn detect(verbose: u8) -> Result<()> {
                 device_info(&device, verbose).await?;
             }
             Err(e) => {
-                let err = map_mtp_error(e);
+                let err = super::map_mtp_error(e);
                 tracing::warn!(index = i, error = %err, "Unable to open device {}", i);
             }
         }
@@ -297,7 +284,7 @@ async fn device_info(device: &mtp_rs::mtp::MtpDevice, verbose: u8) -> Result<()>
         );
     }
 
-    let storages = device.storages().await.map_err(map_mtp_error)?;
+    let storages = device.storages().await.map_err(super::map_mtp_error)?;
 
     for storage in &storages {
         let si = storage.info();
