@@ -1,63 +1,68 @@
 use anyhow::bail;
+use nom::Finish;
+use nom::Parser;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::{alphanumeric1, digit0, digit1, multispace0};
 use nom::combinator::{all_consuming, eof, map, opt, value};
 use nom::error::Error;
 use nom::multi::many_till;
-use nom::sequence::{delimited, terminated, tuple};
-use nom::{Finish, IResult};
+use nom::sequence::{delimited, terminated};
 
-fn sp_term(input: &str) -> IResult<&str, &str> {
-    terminated(alt((tag("sp."), tag("spp."))), multispace0)(input)
+fn sp_term(input: &str) -> nom::IResult<&str, &str> {
+    terminated(alt((tag("sp."), tag("spp."))), multispace0).parse(input)
 }
 
-fn sp_term_with_index(input: &str) -> IResult<&str, String> {
-    map(tuple((sp_term, multispace0, digit0)), |(term, _, digit)| {
+fn sp_term_with_index(input: &str) -> nom::IResult<&str, String> {
+    map((sp_term, multispace0, digit0), |(term, _, digit)| {
         format!("{term}{digit}")
-    })(input)
+    })
+    .parse(input)
 }
 
-fn sp_range(input: &str) -> IResult<&str, String> {
+fn sp_range(input: &str) -> nom::IResult<&str, String> {
     map(
-        tuple((
+        (
             sp_term_with_index,
             opt(delimited(multispace0, tag("-"), multispace0)),
             opt(sp_term_with_index),
-        )),
+        ),
         |(sp1, _, sp2)| match sp2 {
             Some(sp2) => format!("{sp1}-{sp2}"),
             None => sp1,
         },
-    )(input)
+    )
+    .parse(input)
 }
 
-fn number_range(input: &str) -> IResult<&str, String> {
+fn number_range(input: &str) -> nom::IResult<&str, String> {
     map(
-        tuple((
+        (
             delimited(multispace0, digit1, multispace0),
             tag("-"),
             delimited(multispace0, digit1, multispace0),
-        )),
+        ),
         |(p1, p2, p3)| [p1, p2, p3].join(" "),
-    )(input)
+    )
+    .parse(input)
 }
-fn stop_words(input: &str) -> IResult<&str, &str> {
-    delimited(multispace0, tag("cf."), multispace0)(input)
-}
-
-fn word(input: &str) -> IResult<&str, &str> {
-    delimited(multispace0, alphanumeric1, alt((stop_words, multispace0)))(input)
+fn stop_words(input: &str) -> nom::IResult<&str, &str> {
+    delimited(multispace0, tag("cf."), multispace0).parse(input)
 }
 
-fn species_name(input: &str) -> IResult<&str, String> {
+fn word(input: &str) -> nom::IResult<&str, &str> {
+    delimited(multispace0, alphanumeric1, alt((stop_words, multispace0))).parse(input)
+}
+
+fn species_name(input: &str) -> nom::IResult<&str, String> {
     map(
         all_consuming(many_till(
             word,
             alt((sp_range, number_range, value("".to_string(), eof))),
         )),
         |(words, _)| words.join(" "),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub(crate) fn sanitize_species_name(input: &str) -> anyhow::Result<String> {

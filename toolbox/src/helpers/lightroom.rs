@@ -25,10 +25,10 @@ static LRTEMPLATE_ID_RE: Lazy<Regex> = Lazy::new(|| {
 });
 
 mod filters {
-    use std::borrow::Cow;
-
-    /// Basic quoting of backslashes and double quotes in strings
-    pub fn quote(s: &str) -> askama::Result<Cow<'_, str>> {
+    /// Custom askama filter: wraps a string in quotes, escaping inner quotes and backslashes
+    #[askama::filter_fn]
+    pub fn quote(s: impl std::fmt::Display, _: &dyn askama::Values) -> askama::Result<String> {
+        let s = s.to_string();
         let mut output = String::with_capacity(s.len() + 4);
         output.push('"');
 
@@ -40,7 +40,7 @@ mod filters {
         }
 
         output.push('"');
-        Ok(output.into())
+        Ok(output)
     }
 }
 

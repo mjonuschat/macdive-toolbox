@@ -54,7 +54,7 @@ impl Cli {
             Some(path) => {
                 let c = std::fs::read_to_string(path)
                     .with_context(|| format!("Could not read config file {}", &path.display()))?;
-                Ok(serde_yaml::from_str(&c)?)
+                Ok(serde_yml::from_str(&c)?)
             }
             None => Ok(ApplicationConfig {
                 locations: HashMap::new(),
