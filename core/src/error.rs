@@ -22,6 +22,8 @@ pub enum Error {
     Database(#[from] sea_orm::DbErr),
     #[error("iNaturalist API error: {0}")]
     INaturalist(String),
+    #[error("species verification failed: {0}")]
+    GlobalNames(String),
     #[error("HTTP request failed: {0}")]
     Http(#[from] reqwest::Error),
     #[error("JSON serialization error: {0}")]
