@@ -30,6 +30,7 @@ struct Critters {
     critter: Vec<CritterItem>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 struct CritterDoc {
     critters: Critters,
@@ -330,7 +331,7 @@ pub(crate) async fn critter_import(
         let reader = BufReader::new(file).lines();
 
         Ok(reader
-            .filter_map(Result::ok)
+            .map_while(Result::ok)
             .map(|line| line.trim().to_string())
             .filter(|line| !line.is_empty())
             .map(|line| {

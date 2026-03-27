@@ -14,6 +14,7 @@ pub struct Critter {
     pub uuid: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct CritterCategory {
     pub id: i64,
@@ -39,6 +40,7 @@ impl CritterUpdate {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct DiveSite {
     pub id: i64,

@@ -80,7 +80,7 @@ pub async fn cache_species(species: &[&str], offline: bool) -> Result<Vec<String
                     .name
                     .as_ref()
                     .map(|v| v.to_string())
-                    .unwrap_or_else(|| name.to_string()),
+                    .unwrap_or_else(|| ToString::to_string(&name)),
             );
             if let Some(ids) = taxon.ancestor_ids {
                 ancestor_ids.extend(&ids);

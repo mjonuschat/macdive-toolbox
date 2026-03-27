@@ -28,7 +28,7 @@ mod filters {
     use std::borrow::Cow;
 
     /// Basic quoting of backslashes and double quotes in strings
-    pub fn quote(s: &str) -> askama::Result<Cow<str>> {
+    pub fn quote(s: &str) -> askama::Result<Cow<'_, str>> {
         let mut output = String::with_capacity(s.len() + 4);
         output.push('"');
 
@@ -57,6 +57,7 @@ pub struct MetadataPreset {
     pub country: String,
     pub iso_country_code: String,
     pub scene: u64,
+    #[allow(dead_code)]
     pub version: u64,
 }
 

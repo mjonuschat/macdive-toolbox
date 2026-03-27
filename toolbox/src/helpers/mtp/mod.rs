@@ -192,13 +192,13 @@ impl Device {
         ))
     }
 
-    pub fn activity_files(&self, path: &Path) -> Result<Vec<File>, MtpStorageError> {
+    pub fn activity_files(&self, path: &Path) -> Result<Vec<File<'_>>, MtpStorageError> {
         let folder = self.activity_folder(path)?;
         let files: Vec<File> = self
             .storage_pool()
             .by_id(folder.storage_id)
             .map(|v| v.files_and_folders(folder.parent))
-            .unwrap_or_else(Vec::new);
+            .unwrap_or_default();
 
         Ok(files
             .into_iter()

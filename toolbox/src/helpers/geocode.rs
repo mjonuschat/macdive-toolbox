@@ -50,7 +50,7 @@ pub async fn geocode_site(site: DiveSite, key: &str) -> Result<DiveSite, Geocodi
     let location = client
         .reverse_geocoding(latlng)
         // .with_result_type(PlaceType::PlusCode)
-        .with_result_types(&[PlaceType::PlusCode, PlaceType::Country])
+        .with_result_types([PlaceType::PlusCode, PlaceType::Country])
         .execute()
         .await
         .map_err(|_e| GeocodingError::GoogleMaps)?;
