@@ -64,6 +64,8 @@ pub enum LightroomTemplateError {
     Parsing,
 }
 
+// TODO: Remove once the sqlx code path is deleted (Task 11).
+#[allow(dead_code)]
 #[derive(Error, Debug)]
 pub enum DatabaseError {
     #[error("Invalid path to MacDive database")]

@@ -1,6 +1,8 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use clap::Parser;
 use indicatif::{ProgressState, ProgressStyle};
+use macdive_toolbox_core::db::DatabaseManager;
+use macdive_toolbox_core::domain::APPLICATION_NAME;
 use std::time::Duration;
 use tracing::Level;
 use tracing_indicatif::IndicatifLayer;
@@ -14,12 +16,13 @@ mod commands;
 mod errors;
 mod helpers;
 mod inaturalist;
+// TODO: Remove once the sqlx code path is deleted (Task 11).
+#[allow(dead_code)]
 mod macdive;
 mod parsers;
 mod types;
 
 use crate::arguments::{CritterCommands, LightroomCommands, MtpCommands};
-use crate::helpers::database;
 use arguments::{Cli, Commands};
 use migration::{Migrator, MigratorTrait};
 
@@ -93,20 +96,45 @@ fn setup_logging(verbose: u8) -> Result<()> {
     Ok(())
 }
 
+/// Build the path to the application cache database (toolbox.sqlite).
+///
+/// Uses the platform-specific data directory (e.g. `~/Library/Application Support`
+/// on macOS) joined with the application name.
+fn cache_db_path() -> Result<std::path::PathBuf> {
+    let data_dir = dirs::data_dir()
+        .ok_or_else(|| anyhow!("Could not determine the platform data directory"))?;
+    Ok(data_dir.join(APPLICATION_NAME).join("toolbox.sqlite"))
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Cli::parse();
     setup_logging(args.verbose)?;
 
-    // Apply all pending migrations
-    let db = database::connect().await?;
-    Migrator::up(db, None).await?;
+    // Create a unified database manager for both MacDive and cache databases.
+    // MTP commands don't touch databases, so creation is deferred for them.
+    let needs_db = !matches!(&args.command, Commands::Mtp { .. });
+    let db = if needs_db {
+        let macdive_path = args.macdive_database()?;
+        let cache_path = cache_db_path()?;
+        let manager = DatabaseManager::new(&macdive_path, &cache_path).await?;
+
+        // Apply all pending migrations on the cache database.
+        Migrator::up(manager.cache(), None).await?;
+
+        Some(manager)
+    } else {
+        None
+    };
 
     match &args.command {
         Commands::Lightroom { command, options } => match command {
             LightroomCommands::ExportSites { force } => {
+                let db = db
+                    .as_ref()
+                    .expect("DatabaseManager must be initialised for Lightroom commands");
                 commands::lightroom::export_lightroom_metadata_presets(
-                    &args.macdive_database()?,
+                    db,
                     options,
                     &args.config()?.locations(),
                     *force,
@@ -116,11 +144,17 @@ async fn main() -> Result<()> {
         },
         Commands::Critters { command } => match command {
             CritterCommands::Validate => {
-                commands::critters::diff_critters(&args.macdive_database()?, args.offline).await?
+                let db = db
+                    .as_ref()
+                    .expect("DatabaseManager must be initialised for Critters commands");
+                commands::critters::diff_critters(db, args.offline).await?
             }
             CritterCommands::ValidateCategories => {
+                let db = db
+                    .as_ref()
+                    .expect("DatabaseManager must be initialised for Critters commands");
                 commands::critters::diff_critter_categories(
-                    &args.macdive_database()?,
+                    db,
                     &args.config()?.into(),
                     args.offline,
                 )

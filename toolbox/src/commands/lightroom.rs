@@ -2,15 +2,14 @@ use comfy_table::*;
 use console::{Emoji, style};
 use futures::StreamExt;
 use indicatif::ProgressBar;
+use macdive_toolbox_core::db::DatabaseManager;
 use std::convert::TryInto;
-use std::path::Path;
 
 use crate::arguments::LightroomOptions;
 use crate::errors::ConversionError;
 use crate::helpers::lightroom::MetadataPreset;
 use crate::helpers::{geocode, lightroom};
-use crate::types::LocationOverride;
-use crate::{macdive, types};
+use crate::types::{self, LocationOverride, dive_site_from_entity};
 
 static LOOKING_GLASS: Emoji<'_, '_> = Emoji("🔍  ", "");
 static DIVING_MASK: Emoji<'_, '_> = Emoji("🤿️  ", "");
@@ -46,7 +45,7 @@ fn print_summary(presets: &[MetadataPreset]) {
 }
 
 pub(crate) async fn export_lightroom_metadata_presets(
-    database: &Path,
+    db: &DatabaseManager,
     options: &LightroomOptions,
     overrides: &[LocationOverride],
     force: bool,
@@ -63,12 +62,11 @@ pub(crate) async fn export_lightroom_metadata_presets(
         style("[2/4]").bold().dim(),
         DIVING_MASK
     );
-    let connection = macdive::establish_connection(database).await?;
-    let sites = macdive::sites(&connection)
+    let sites = macdive_toolbox_core::macdive::queries::sites(db.macdive())
         .await?
         .into_iter()
-        .map(|site| site.try_into())
-        .collect::<anyhow::Result<Vec<types::DiveSite>, ConversionError>>()?;
+        .map(dive_site_from_entity)
+        .collect::<Result<Vec<types::DiveSite>, ConversionError>>()?;
 
     println!(
         "{} {}Looking up addresses for dive sites...",

@@ -2,16 +2,15 @@ use crate::arguments::{MacdiveImportFormat, PrepareImportOptions};
 use crate::helpers::globalnames;
 use crate::helpers::progress::header;
 use crate::inaturalist::{Taxon, TaxonCategoryName, TaxonGroupName};
-use crate::macdive;
 use crate::macdive::models::CritterUpdate;
 use crate::parsers::species::sanitize_species_name;
 use crate::types::{CritterCategoryConfig, CritterConfig};
 use futures::StreamExt;
+use macdive_toolbox_core::db::DatabaseManager;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::path::Path;
 use tracing::instrument;
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
@@ -45,9 +44,8 @@ impl Default for Critters {
     }
 }
 
-pub async fn diff_critters(database: &Path, offline: bool) -> anyhow::Result<()> {
-    let connection = macdive::establish_connection(database).await?;
-    let critters = crate::macdive::critters(&connection).await?;
+pub async fn diff_critters(db: &DatabaseManager, offline: bool) -> anyhow::Result<()> {
+    let critters = macdive_toolbox_core::macdive::queries::critters(db.macdive()).await?;
 
     let species = critters
         .iter()
@@ -138,26 +136,25 @@ pub async fn diff_critters(database: &Path, offline: bool) -> anyhow::Result<()>
 }
 
 pub async fn diff_critter_categories(
-    database: &Path,
+    db: &DatabaseManager,
     overrides: &CritterCategoryConfig,
     offline: bool,
 ) -> anyhow::Result<()> {
-    let connection = macdive::establish_connection(database).await?;
-
-    let critters = crate::macdive::critters(&connection).await?;
+    let critters = macdive_toolbox_core::macdive::queries::critters(db.macdive()).await?;
 
     // Categories that currently are in MacDive
-    let mut current_categories = crate::macdive::critter_categories(&connection)
-        .await?
-        .into_iter()
-        .filter_map(|category| match category.name.as_deref() {
-            Some(name) => {
-                let key = change_case::lower_case(name);
-                Some((key, category))
-            }
-            None => None,
-        })
-        .collect::<HashMap<_, _>>();
+    let mut current_categories =
+        macdive_toolbox_core::macdive::queries::critter_categories(db.macdive())
+            .await?
+            .into_iter()
+            .filter_map(|category| match category.name.as_deref() {
+                Some(name) => {
+                    let key = change_case::lower_case(name);
+                    Some((key, category))
+                }
+                None => None,
+            })
+            .collect::<HashMap<_, _>>();
 
     let critter_groups: HashMap<String, TaxonGroupName> =
         futures::stream::iter(critters.iter().filter_map(|c| c.species.clone()))
