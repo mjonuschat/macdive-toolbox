@@ -91,11 +91,9 @@ pub(crate) async fn export_lightroom_metadata_presets(
             .await
             .into_iter()
             .map(|item| {
-                item.map_err(ConversionError::GeocodingError)
-                    .and_then(|site| {
-                        geocode::apply_overrides(site, overrides)
-                            .map_err(ConversionError::GeocodingError)
-                    })
+                item.map_err(ConversionError::from).and_then(|site| {
+                    geocode::apply_overrides(site, overrides).map_err(ConversionError::from)
+                })
             })
             .collect::<anyhow::Result<Vec<_>, ConversionError>>()?;
     }
