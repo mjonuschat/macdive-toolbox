@@ -18,6 +18,8 @@ pub enum Error {
     Config(String),
     #[error("species name parse error: {0}")]
     ParseError(String),
+    #[error("database error: {0}")]
+    Database(#[from] sea_orm::DbErr),
 }
 
 /// Convenience alias used throughout the core crate.

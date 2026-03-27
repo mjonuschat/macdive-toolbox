@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+entity = { path = "../entity" }
+sea-orm = { version = "1.0", features = ["runtime-tokio-native-tls", "sqlx-sqlite"] }
 celes = "2.4.0"
 change-case = "0.2.0"
 chrono = "0.4.19"
