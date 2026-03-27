@@ -1,27 +1,37 @@
-use libmtp_rs::{
-    device::{
-        MtpDevice,
-        raw::{RawDevice, detect_raw_devices},
-    },
-    error::{Error as MtpError, MtpErrorKind},
-};
-use std::ops::Deref;
+use std::fmt;
+
+use mtp_rs::mtp::{MtpDevice, MtpDeviceInfo};
 
 use crate::error::{Error, Result};
 
-/// Returns all raw MTP devices currently attached to the USB bus.
+/// Maps an `mtp_rs::Error` into our crate-level `Error::Mtp`.
+///
+/// Checks `is_exclusive_access()` to surface a macOS-specific diagnostic
+/// message when `ptpcamerad` claims the USB interface.
+fn map_mtp_error(e: mtp_rs::Error) -> Error {
+    if e.is_exclusive_access() {
+        Error::Mtp(
+            "device claimed by another process. On macOS, try: \
+             sudo launchctl unload /System/Library/LaunchDaemons/com.apple.ptpcamerad.plist"
+                .to_string(),
+        )
+    } else {
+        Error::Mtp(e.to_string())
+    }
+}
+
+/// Returns all MTP devices currently visible on the USB bus without opening them.
 ///
 /// # Errors
 ///
-/// Returns `Error::Mtp` if the underlying libmtp call fails or no device is attached.
-pub(super) fn get_raw_devices() -> Result<Vec<RawDevice>> {
-    detect_raw_devices().map_err(|e| match e {
-        MtpError::MtpError { kind, ref text } => match kind {
-            MtpErrorKind::NoDeviceAttached => Error::Mtp("no MTP device attached".to_string()),
-            _ => Error::Mtp(text.clone()),
-        },
-        other => Error::Mtp(other.to_string()),
-    })
+/// Returns `Error::Mtp` if the underlying USB enumeration fails or no device
+/// is attached.
+pub(super) fn list_devices() -> Result<Vec<MtpDeviceInfo>> {
+    let devices = MtpDevice::list_devices().map_err(map_mtp_error)?;
+    if devices.is_empty() {
+        return Err(Error::Mtp("no MTP device attached".to_string()));
+    }
+    Ok(devices)
 }
 
 /// Selects which MTP device to open when multiple devices are attached.
@@ -38,22 +48,58 @@ pub enum DeviceSelector {
 }
 
 /// An opened MTP device with its friendly name and serial number pre-fetched.
-#[derive(Debug)]
+///
+/// Wraps [`MtpDevice`] and eagerly reads the device info so callers can
+/// access `name` and `serial` without additional I/O.
 pub struct Device {
-    /// Human-readable name: the device's friendly name if available, otherwise
-    /// `"<Manufacturer> <Model>"`.
+    /// Human-readable name: the device model if available, otherwise
+    /// `"<Manufacturer> <Model>"` with fallbacks to `"Unknown"`.
     pub name: String,
     /// Serial number reported by the device, or `"Unknown"` if unavailable.
     pub serial: String,
+    /// The underlying mtp-rs device handle.
     inner: MtpDevice,
+}
+
+// MtpDevice does not implement Debug, so we provide a manual impl that
+// prints the pre-fetched name and serial instead.
+impl fmt::Debug for Device {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Device")
+            .field("name", &self.name)
+            .field("serial", &self.serial)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Device {
     /// Wrap an already-opened [`MtpDevice`], eagerly reading its name and serial.
     pub fn new(device: MtpDevice) -> Self {
+        let info = device.device_info();
+        let name = if info.model.is_empty() {
+            let manufacturer = if info.manufacturer.is_empty() {
+                "Unknown"
+            } else {
+                &info.manufacturer
+            };
+            let model = if info.model.is_empty() {
+                "Unknown"
+            } else {
+                &info.model
+            };
+            format!("{} {}", manufacturer, model)
+        } else {
+            info.model.clone()
+        };
+        let serial = if info.serial_number.is_empty() {
+            "Unknown".to_string()
+        } else {
+            info.serial_number.clone()
+        };
+
         Self {
-            name: Self::friendly_name(&device),
-            serial: Self::serial_number(&device),
+            name,
+            serial,
             inner: device,
         }
     }
@@ -61,61 +107,58 @@ impl Device {
     /// Open a device that matches `selector`.
     ///
     /// When `selector` is [`DeviceSelector::First`] and more than one device is
-    /// present, a warning is printed and the first device is returned.
+    /// present, a warning is logged and the first device is returned.
     ///
     /// # Errors
     ///
     /// Returns `Error::Mtp` if:
     /// - no devices are attached,
-    /// - a raw device cannot be opened,
+    /// - a device cannot be opened,
     /// - no device matches the selector.
-    pub fn get(selector: &DeviceSelector) -> Result<Device> {
-        let raw_devices = get_raw_devices()?;
+    pub async fn get(selector: &DeviceSelector) -> Result<Device> {
+        let device_infos = list_devices()?;
 
-        if raw_devices.len() > 1 && matches!(selector, DeviceSelector::First) {
+        if device_infos.len() > 1 && matches!(selector, DeviceSelector::First) {
             tracing::warn!(
-                count = raw_devices.len(),
+                count = device_infos.len(),
                 "Found {} MTP devices, defaulting to first one found. \
                  Please select a specific device using manufacturer/model/serial number",
-                raw_devices.len()
+                device_infos.len()
             );
         }
 
-        for raw_device in raw_devices {
-            let opened = raw_device.open_uncached();
-            match opened {
-                Some(device) => match selector {
-                    DeviceSelector::First => return Ok(Self::new(device)),
-                    DeviceSelector::ManufacturerName(pattern) => {
-                        if let Ok(name) = device.manufacturer_name()
-                            && name.contains(pattern)
-                        {
-                            return Ok(Self::new(device));
-                        }
-                    }
-                    DeviceSelector::ModelName(pattern) => {
-                        if let Ok(name) = device.model_name()
-                            && name.contains(pattern)
-                        {
-                            return Ok(Self::new(device));
-                        }
-                    }
-                    DeviceSelector::SerialNumber(pattern) => {
-                        if let Ok(serial) = device.serial_number()
-                            && serial == *pattern
-                        {
-                            return Ok(Self::new(device));
-                        }
-                    }
-                },
-                None => {
-                    let entry = raw_device.device_entry();
+        for info in &device_infos {
+            // Pre-open filtering: check fields from MtpDeviceInfo (Option<String>)
+            // before paying the cost of opening the device.
+            let matches_selector = match selector {
+                DeviceSelector::First => true,
+                DeviceSelector::ManufacturerName(pattern) => info
+                    .manufacturer
+                    .as_ref()
+                    .is_some_and(|name| name.contains(pattern.as_str())),
+                DeviceSelector::ModelName(pattern) => info
+                    .product
+                    .as_ref()
+                    .is_some_and(|name| name.contains(pattern.as_str())),
+                DeviceSelector::SerialNumber(pattern) => {
+                    info.serial_number.as_ref().is_some_and(|sn| sn == pattern)
+                }
+            };
+
+            if !matches_selector {
+                continue;
+            }
+
+            match MtpDevice::open_by_location(info.location_id).await {
+                Ok(device) => return Ok(Self::new(device)),
+                Err(e) => {
                     tracing::warn!(
-                        vendor_id = entry.vendor_id,
-                        product_id = entry.product_id,
+                        vendor_id = info.vendor_id,
+                        product_id = info.product_id,
+                        error = %e,
                         "Could not open device (Vendor {:04x}, Product {:04x}), skipping",
-                        entry.vendor_id,
-                        entry.product_id
+                        info.vendor_id,
+                        info.product_id
                     );
                 }
             }
@@ -126,32 +169,9 @@ impl Device {
         ))
     }
 
-    fn friendly_name(device: &MtpDevice) -> String {
-        match device.get_friendly_name() {
-            Ok(fname) => fname,
-            Err(_) => format!(
-                "{} {}",
-                device
-                    .manufacturer_name()
-                    .unwrap_or_else(|_| "Unknown".to_string()),
-                device
-                    .model_name()
-                    .unwrap_or_else(|_| "Unknown".to_string())
-            ),
-        }
-    }
-
-    fn serial_number(device: &MtpDevice) -> String {
-        device
-            .serial_number()
-            .unwrap_or_else(|_| "Unknown".to_string())
-    }
-}
-
-impl Deref for Device {
-    type Target = MtpDevice;
-
-    fn deref(&self) -> &Self::Target {
+    /// Returns a reference to the inner [`MtpDevice`] for direct access to
+    /// storages and other low-level operations.
+    pub fn inner(&self) -> &MtpDevice {
         &self.inner
     }
 }
