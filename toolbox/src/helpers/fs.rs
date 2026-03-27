@@ -4,17 +4,13 @@ use walkdir::{DirEntry, WalkDir};
 
 const ACTIVITY_FILE_TYPES: [&str; 3] = ["fit", "gpx", "tcx"];
 
+/// Create a directory and all parent directories if they do not exist.
+///
+/// Delegates to `macdive_toolbox_core::util::fs::create_dir` and maps errors
+/// into the toolbox `PathError` type.
 pub(crate) fn create_dir(path: &Path) -> Result<(), PathError> {
-    match std::fs::metadata(path) {
-        Ok(metadata) => {
-            if metadata.is_dir() {
-                Ok(())
-            } else {
-                Err(PathError::Inaccessible(path.to_string_lossy().to_string()))
-            }
-        }
-        Err(_e) => Ok(std::fs::create_dir_all(path)?),
-    }
+    macdive_toolbox_core::util::fs::create_dir(path)
+        .map_err(|_| PathError::Inaccessible(path.to_string_lossy().to_string()))
 }
 
 pub fn is_activity_file(file: &str) -> bool {

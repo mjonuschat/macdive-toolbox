@@ -1,13 +1,11 @@
 use ::entity::{prelude::VerifiedName, verified_name};
 use anyhow::bail;
-use governor::clock::QuantaClock;
-use governor::state::{InMemoryState, NotKeyed};
-use governor::{Jitter, Quota, RateLimiter};
-use nonzero_ext::nonzero;
-use once_cell::sync::Lazy;
+use governor::Jitter;
+use macdive_toolbox_core::util::rate_limit::{ApiRateLimiter, create_rate_limiter};
 use sea_orm::prelude::*;
 use sea_orm::{Set, sea_query::OnConflict};
 use serde_derive::{Deserialize, Serialize};
+use std::sync::LazyLock;
 use std::time::Duration;
 use surf::http::mime;
 use tracing::instrument;
@@ -18,8 +16,7 @@ use crate::helpers::database;
 const SOURCE_WORMS: usize = 9;
 const SOURCE_GBIF: usize = 11;
 const VERIFIER_URL: &str = "https://verifier.globalnames.org/api/v1/verifications";
-static VERIFIER_API_LIMIT: Lazy<RateLimiter<NotKeyed, InMemoryState, QuantaClock>> =
-    Lazy::new(|| RateLimiter::direct(Quota::per_minute(nonzero!(60u32))));
+static VERIFIER_API_LIMIT: LazyLock<ApiRateLimiter> = LazyLock::new(|| create_rate_limiter(60));
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 enum MatchType {
