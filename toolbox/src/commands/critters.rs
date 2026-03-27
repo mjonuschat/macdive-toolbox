@@ -234,7 +234,9 @@ struct CritterItem {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename = "critters")]
 struct Critters {
+    #[serde(rename = "@schema")]
     schema: String,
     critter: Vec<CritterItem>,
 }
@@ -582,9 +584,11 @@ pub(crate) async fn critter_import(
 
     match options.format {
         MacdiveImportFormat::Xml => {
-            let result = xml_serde::to_string(&critters)?.replace(
-                "<critters xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">",
-                "<!DOCTYPE critters SYSTEM \"http://www.mac-dive.com/macdive_critters.dtd\">\n<critters>",
+            let xml = quick_xml::se::to_string(&critters)?;
+            let result = format!(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+                 <!DOCTYPE critters SYSTEM \"http://www.mac-dive.com/macdive_critters.dtd\">\n\
+                 {xml}"
             );
             std::fs::write(&options.dest, result)?;
         }
