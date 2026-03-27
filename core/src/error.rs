@@ -14,6 +14,8 @@ pub enum Error {
     InvalidGps,
     #[error("geocoding API failed")]
     GeocodingFailed,
+    #[error("configuration error: {0}")]
+    Config(String),
 }
 
 /// Convenience alias used throughout the core crate.

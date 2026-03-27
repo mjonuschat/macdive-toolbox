@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use anyhow::Context;
 use clap::{ArgAction, ColorChoice, ValueHint};
 
 use crate::errors::PathError;
@@ -52,9 +51,8 @@ impl Cli {
     pub fn config(&self) -> anyhow::Result<ApplicationConfig> {
         match &self.config {
             Some(path) => {
-                let c = std::fs::read_to_string(path)
-                    .with_context(|| format!("Could not read config file {}", &path.display()))?;
-                Ok(serde_yml::from_str(&c)?)
+                use macdive_toolbox_core::config::load_config;
+                Ok(load_config(path)?)
             }
             None => Ok(ApplicationConfig {
                 locations: HashMap::new(),

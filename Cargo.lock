@@ -2930,6 +2930,7 @@ dependencies = [
  "rust_decimal",
  "rust_decimal_macros",
  "serde",
+ "serde_yml",
  "thiserror 2.0.17",
  "tracing",
  "uuid",
