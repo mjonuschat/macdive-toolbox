@@ -19,6 +19,6 @@ use crate::error::{Error, Result};
 pub fn load_config(path: &Path) -> Result<ApplicationConfig> {
     let content = std::fs::read_to_string(path)
         .map_err(|e| Error::Config(format!("could not read {}: {e}", path.display())))?;
-    serde_yml::from_str(&content)
+    serde_saphyr::from_str(&content)
         .map_err(|e| Error::Config(format!("invalid config {}: {e}", path.display())))
 }
