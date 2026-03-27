@@ -109,12 +109,12 @@ async fn main() -> Result<()> {
     // MTP commands don't need database access, so dispatch them early.
     if let Commands::Mtp { command, options } = &args.command {
         match command {
-            MtpCommands::Detect => commands::mtp::detect(args.verbose)?,
+            MtpCommands::Detect => commands::mtp::detect(args.verbose).await?,
             MtpCommands::ListFiles { .. } => {
                 let verbose = args.verbose > 0;
-                commands::mtp::listfiles(options.to_owned().into(), verbose)?
+                commands::mtp::listfiles(options.to_owned().into(), verbose).await?
             }
-            MtpCommands::Sync(params) => commands::mtp::sync(options, params)?,
+            MtpCommands::Sync(params) => commands::mtp::sync(options, params).await?,
         }
         return Ok(());
     }

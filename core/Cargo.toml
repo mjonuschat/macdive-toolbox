@@ -29,5 +29,5 @@ uuid = { version = "1.3.0", features = ["serde", "v4"] }
 walkdir = "2.3.2"
 bytefmt = "0.1.7"
 indicatif = "0.18.0"
-libmtp-rs = { version = "0.7.7", git = "https://github.com/quebin31/libmtp-rs.git" }
+mtp-rs = "0.4"
 ptree = "0.5.0"
