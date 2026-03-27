@@ -3,7 +3,7 @@ use crate::types::{DiveSite, LocationOverride};
 
 use std::convert::TryInto;
 
-use geo::{contains::Contains, Coord};
+use geo::{Coord, contains::Contains};
 use google_maps::{ClientSettings, LatLng, PlaceType};
 
 fn find_override(

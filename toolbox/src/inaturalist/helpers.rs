@@ -3,16 +3,16 @@ use std::time::Duration;
 
 use crate::helpers::database;
 use crate::inaturalist::{
-    types::ResultsTaxa, types::TaxaAutocompleteQuery, types::Taxon, types::TAXON_FIELDS,
-    INAT_API_LIMIT,
+    INAT_API_LIMIT, types::ResultsTaxa, types::TAXON_FIELDS, types::TaxaAutocompleteQuery,
+    types::Taxon,
 };
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use entity::taxon_cache;
 use governor::Jitter;
 use itertools::Itertools;
 use sea_orm::prelude::*;
-use sea_orm::{sea_query::OnConflict, QuerySelect, QueryTrait, Set};
-use surf::{http::mime, RequestBuilder};
+use sea_orm::{QuerySelect, QueryTrait, Set, sea_query::OnConflict};
+use surf::{RequestBuilder, http::mime};
 use tracing::instrument;
 
 enum CacheLookupKey<'a> {
@@ -74,7 +74,8 @@ pub async fn cache_species(species: &[&str], offline: bool) -> Result<Vec<String
     let mut normalized_names: Vec<String> = Vec::new();
     let mut ancestor_ids: HashSet<i32> = HashSet::new();
     for name in species {
-        if let Ok(taxon) = get_taxon_by_name(name, offline).await {
+        let result = get_taxon_by_name(name, offline).await;
+        if let Ok(taxon) = result {
             normalized_names.push(
                 taxon
                     .name

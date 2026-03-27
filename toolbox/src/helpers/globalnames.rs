@@ -6,7 +6,7 @@ use governor::{Jitter, Quota, RateLimiter};
 use nonzero_ext::nonzero;
 use once_cell::sync::Lazy;
 use sea_orm::prelude::*;
-use sea_orm::{sea_query::OnConflict, Set};
+use sea_orm::{Set, sea_query::OnConflict};
 use serde_derive::{Deserialize, Serialize};
 use std::time::Duration;
 use surf::http::mime;

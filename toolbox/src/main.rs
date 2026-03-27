@@ -4,10 +4,10 @@ use indicatif::{ProgressState, ProgressStyle};
 use std::time::Duration;
 use tracing::Level;
 use tracing_indicatif::IndicatifLayer;
+use tracing_subscriber::Layer;
 use tracing_subscriber::filter::{LevelFilter, Targets};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::Layer;
 
 mod arguments;
 mod commands;

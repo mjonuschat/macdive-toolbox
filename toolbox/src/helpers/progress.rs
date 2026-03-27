@@ -1,5 +1,5 @@
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
-use tracing::{info_span, Span};
+use tracing::{Span, info_span};
 use tracing_indicatif::span_ext::IndicatifSpanExt;
 
 pub(crate) fn create_spinner(msg: &str) -> anyhow::Result<ProgressBar> {

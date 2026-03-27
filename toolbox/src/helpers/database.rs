@@ -1,6 +1,6 @@
 use crate::helpers::fs::create_dir;
 use crate::types::APPLICATION_NAME;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use sea_orm::{Database, DbConn};
 use tokio::sync::OnceCell;
 

@@ -4,7 +4,7 @@ use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 
 use google_maps::LatLng;
-use rust_decimal::{prelude::FromPrimitive, Decimal};
+use rust_decimal::{Decimal, prelude::FromPrimitive};
 use rust_decimal_macros::dec;
 use serde_derive::{Deserialize, Serialize};
 use sqlx::{Pool, Sqlite};

@@ -162,17 +162,19 @@ pub async fn diff_critter_categories(
     let critter_groups: HashMap<String, TaxonGroupName> =
         futures::stream::iter(critters.iter().filter_map(|c| c.species.clone()))
             .filter_map(|scientific_name| async move {
-                if let Ok(taxon) =
-                    crate::inaturalist::get_taxon_by_name(&scientific_name, offline).await
-                {
-                    if let Ok(group_name) = taxon.group_name(overrides, offline).await {
-                        return Some((scientific_name, group_name));
+                let result = crate::inaturalist::get_taxon_by_name(&scientific_name, offline).await;
+                match result {
+                    Ok(taxon) => {
+                        if let Ok(group_name) = taxon.group_name(overrides, offline).await {
+                            return Some((scientific_name, group_name));
+                        }
                     }
-                } else {
-                    tracing::error!(
-                        scientific_name = scientific_name.as_str(),
-                        "Taxon lookup failed"
-                    )
+                    Err(_) => {
+                        tracing::error!(
+                            scientific_name = scientific_name.as_str(),
+                            "Taxon lookup failed"
+                        );
+                    }
                 }
 
                 None

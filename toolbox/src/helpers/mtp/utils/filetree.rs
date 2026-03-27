@@ -1,10 +1,10 @@
 use anyhow::Result;
 use indicatif::ProgressBar;
-use libmtp_rs::object::{filetypes::Filetype, Object};
+use libmtp_rs::object::{Object, filetypes::Filetype};
 use libmtp_rs::storage::{Parent, Storage};
 use ptree::item::StringItem;
 
-use crate::helpers::mtp::{types::DeviceSelector, Device};
+use crate::helpers::mtp::{Device, types::DeviceSelector};
 use crate::helpers::{fs, progress};
 
 pub fn filetree(selector: DeviceSelector, verbose: bool) -> Result<()> {

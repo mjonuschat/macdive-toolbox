@@ -1,5 +1,5 @@
 use comfy_table::*;
-use console::{style, Emoji};
+use console::{Emoji, style};
 use futures::StreamExt;
 use indicatif::ProgressBar;
 use std::convert::TryInto;

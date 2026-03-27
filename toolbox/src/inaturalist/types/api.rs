@@ -2,7 +2,7 @@ use super::models::*;
 
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub(in crate::inaturalist) static TAXON_FIELDS: Lazy<Value> = Lazy::new(|| {
     json!(

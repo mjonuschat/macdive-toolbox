@@ -6,12 +6,12 @@ use std::path::Path;
 
 use libmtp_rs::{
     device::{
-        raw::{detect_raw_devices, RawDevice},
         MtpDevice,
+        raw::{RawDevice, detect_raw_devices},
     },
     error::{Error as MtpError, MtpErrorKind},
-    object::{filetypes::Filetype, Object},
-    storage::{files::File, Parent, Storage},
+    object::{Object, filetypes::Filetype},
+    storage::{Parent, Storage, files::File},
 };
 
 pub use utils::{detect, filetree};
@@ -65,37 +65,39 @@ impl Device {
         }
 
         for raw_device in raw_devices {
-            if let Some(device) = raw_device.open_uncached() {
-                match selector {
+            let opened = raw_device.open_uncached();
+            match opened {
+                Some(device) => match selector {
                     DeviceSelector::First => return Ok(Self::new(device)),
-                    DeviceSelector::ManufacturerName(ref pattern) => {
-                        if let Ok(name) = device.manufacturer_name() {
-                            if name.contains(pattern) {
-                                return Ok(Self::new(device));
-                            }
+                    DeviceSelector::ManufacturerName(pattern) => {
+                        if let Ok(name) = device.manufacturer_name()
+                            && name.contains(pattern)
+                        {
+                            return Ok(Self::new(device));
                         }
                     }
-                    DeviceSelector::ModelName(ref pattern) => {
-                        if let Ok(name) = device.model_name() {
-                            if name.contains(pattern) {
-                                return Ok(Self::new(device));
-                            }
+                    DeviceSelector::ModelName(pattern) => {
+                        if let Ok(name) = device.model_name()
+                            && name.contains(pattern)
+                        {
+                            return Ok(Self::new(device));
                         }
                     }
-                    DeviceSelector::SerialNumber(ref pattern) => {
-                        if let Ok(serial) = device.serial_number() {
-                            if serial == *pattern {
-                                return Ok(Self::new(device));
-                            }
+                    DeviceSelector::SerialNumber(pattern) => {
+                        if let Ok(serial) = device.serial_number()
+                            && serial == *pattern
+                        {
+                            return Ok(Self::new(device));
                         }
                     }
+                },
+                None => {
+                    let device = raw_device.device_entry();
+                    println!(
+                        "Could not open device (Vendor {:04x}, Product {:04x}), skipping...",
+                        device.vendor_id, device.product_id
+                    );
                 }
-            } else {
-                let device = raw_device.device_entry();
-                println!(
-                    "Could not open device (Vendor {:04x}, Product {:04x}), skipping...",
-                    device.vendor_id, device.product_id
-                )
             }
         }
 
@@ -143,7 +145,8 @@ impl Device {
                             && entry.name() == component.as_os_str()
                     });
 
-                match targets.next() {
+                let next_target = targets.next();
+                match next_target {
                     Some(target) => {
                         Self::find_folder_recursive(components.as_path(), storage, Some(target))
                     }
@@ -162,7 +165,8 @@ impl Device {
 
         for (i, (_id, storage)) in storage_pool.iter().enumerate() {
             // Find activity folder
-            if let Some(folder) = Self::find_folder_recursive(path, storage, None)? {
+            let result = Self::find_folder_recursive(path, storage, None)?;
+            if let Some(folder) = result {
                 println!(
                     "Found {} folder on Storage {}:",
                     path.to_string_lossy(),

@@ -64,14 +64,15 @@ pub fn detect(verbose: u8) -> Result<()> {
 
     println!("Attempting to connect to device(s)");
     for (i, raw_device) in raw_devices.iter().enumerate() {
-        match raw_device.open_uncached() {
+        let opened = raw_device.open_uncached();
+        match opened {
             Some(device) => match verbose {
                 0 => device_info(device, false)?,
                 1 => device_info(device, true)?,
                 _ => device.dump_device_info(),
             },
             None => {
-                println!("Unable to open raw device {}", i)
+                println!("Unable to open raw device {}", i);
             }
         }
     }
