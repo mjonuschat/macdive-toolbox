@@ -1,18 +1,227 @@
-use crate::arguments::{MacdiveImportFormat, PrepareImportOptions};
-use crate::helpers::globalnames;
-use crate::helpers::progress::header;
-use crate::inaturalist::{Taxon, TaxonCategoryName, TaxonGroupName};
-use crate::macdive;
-use crate::macdive::models::CritterUpdate;
-use crate::parsers::species::sanitize_species_name;
-use crate::types::{CritterCategoryConfig, CritterConfig};
+use crate::cli::{MacdiveImportFormat, PrepareImportOptions};
+use crate::progress::header;
 use futures::StreamExt;
+use macdive_toolbox_core::db::DatabaseManager;
+use macdive_toolbox_core::domain::{CritterCategoryConfig, CritterConfig, TaxonGroupName};
+use macdive_toolbox_core::macdive::queries;
+use macdive_toolbox_core::parsers::species::sanitize_species_name;
+use macdive_toolbox_core::services::globalnames;
+use macdive_toolbox_core::services::inaturalist::{
+    self, Taxon, get_taxon_by_id, get_taxon_by_name,
+};
+use sea_orm::DbConn;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::path::Path;
 use tracing::instrument;
+
+/// Trait for resolving a taxon's category group name from its ancestry.
+#[async_trait::async_trait]
+trait TaxonCategoryName {
+    /// Walk the taxon's ancestor chain and determine its category group name.
+    ///
+    /// # Arguments
+    ///
+    /// * `db` - Cache database connection for ancestor lookups
+    /// * `overrides` - User-supplied category configuration overrides
+    /// * `offline` - When true, only use cached ancestor data
+    async fn group_name(
+        &self,
+        db: &DbConn,
+        overrides: &CritterCategoryConfig,
+        offline: bool,
+    ) -> anyhow::Result<TaxonGroupName>;
+}
+
+#[async_trait::async_trait]
+impl TaxonCategoryName for Taxon {
+    async fn group_name(
+        &self,
+        db: &DbConn,
+        overrides: &CritterCategoryConfig,
+        offline: bool,
+    ) -> anyhow::Result<TaxonGroupName> {
+        let mut group = TaxonGroupName::Unspecified;
+        if let Some(ancestor_ids) = &self.ancestor_ids {
+            for ancestor_id in ancestor_ids.iter() {
+                let ancestor = get_taxon_by_id(db, *ancestor_id, offline).await?;
+                match ancestor.rank.as_deref() {
+                    Some("phylum") => {
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Phylum(name);
+                        }
+                    }
+                    Some("subphylum") => {
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Subphylum(name);
+                        }
+                    }
+                    Some("class") => {
+                        if group.prefer_higher_common_name("class", overrides) {
+                            continue;
+                        }
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Class(name);
+                        }
+                    }
+                    Some("subclass")
+                        if matches!(
+                            group,
+                            TaxonGroupName::Phylum(_) | TaxonGroupName::Class(_)
+                        ) =>
+                    {
+                        if group.prefer_higher_common_name("subclass", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Subclass(name)
+                        }
+                    }
+                    Some("infraclass")
+                        if matches!(
+                            group,
+                            TaxonGroupName::Phylum(_)
+                                | TaxonGroupName::Class(_)
+                                | TaxonGroupName::Subclass(_)
+                        ) =>
+                    {
+                        if group.prefer_higher_common_name("infraclass", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Infraclass(name)
+                        }
+                    }
+                    Some("superorder")
+                        if matches!(
+                            group,
+                            TaxonGroupName::Phylum(_)
+                                | TaxonGroupName::Class(_)
+                                | TaxonGroupName::Subclass(_)
+                                | TaxonGroupName::Infraclass(_)
+                        ) =>
+                    {
+                        if group.prefer_higher_common_name("superorder", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Superorder(name)
+                        }
+                    }
+                    Some("order")
+                        if matches!(
+                            group,
+                            TaxonGroupName::Phylum(_)
+                                | TaxonGroupName::Class(_)
+                                | TaxonGroupName::Subclass(_)
+                                | TaxonGroupName::Infraclass(_)
+                                | TaxonGroupName::Superorder(_)
+                        ) =>
+                    {
+                        if group.prefer_higher_common_name("order", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Order(name)
+                        }
+                    }
+                    Some("suborder") if matches!(group, TaxonGroupName::Order(_)) => {
+                        if group.prefer_higher_common_name("suborder", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Suborder(name)
+                        }
+                    }
+                    Some("infraorder")
+                        if matches!(
+                            group,
+                            TaxonGroupName::Phylum(_)
+                                | TaxonGroupName::Class(_)
+                                | TaxonGroupName::Subclass(_)
+                                | TaxonGroupName::Superorder(_)
+                                | TaxonGroupName::Suborder(_)
+                        ) =>
+                    {
+                        if group.prefer_higher_common_name("infraorder", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Infraorder(name)
+                        }
+                    }
+                    Some("superfamily")
+                        if matches!(
+                            group,
+                            TaxonGroupName::Order(_)
+                                | TaxonGroupName::Infraclass(_)
+                                | TaxonGroupName::Subclass(_)
+                                | TaxonGroupName::Infraorder(_)
+                        ) =>
+                    {
+                        if group.prefer_higher_common_name("superfamily", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Superfamily(name)
+                        }
+                    }
+                    Some("family")
+                        if matches!(
+                            group,
+                            TaxonGroupName::Phylum(_)
+                                | TaxonGroupName::Order(_)
+                                | TaxonGroupName::Infraorder(_)
+                                | TaxonGroupName::Subclass(_)
+                                | TaxonGroupName::Superfamily(_)
+                        ) =>
+                    {
+                        if group.prefer_higher_common_name("family", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Family(name)
+                        }
+                    }
+                    Some("subfamily") if matches!(group, TaxonGroupName::Family(_)) => {
+                        if group.prefer_higher_common_name("subfamily", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Subfamily(name);
+                        }
+                    }
+                    Some("genus") if matches!(group, TaxonGroupName::Subfamily(_)) => {
+                        if group.prefer_higher_common_name("genus", overrides) {
+                            continue;
+                        }
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Genus(name);
+                        }
+                    }
+                    Some("species") => {
+                        if let Some(v) = overrides.group_names.get(&group.to_string()) {
+                            group = TaxonGroupName::Custom(v.to_owned())
+                        }
+                    }
+                    Some(_) | None => {}
+                }
+            }
+        }
+
+        Ok(group)
+    }
+}
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 struct CritterItem {
@@ -30,12 +239,6 @@ struct Critters {
     critter: Vec<CritterItem>,
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-struct CritterDoc {
-    critters: Critters,
-}
-
 impl Default for Critters {
     fn default() -> Self {
         Self {
@@ -45,22 +248,22 @@ impl Default for Critters {
     }
 }
 
-pub async fn diff_critters(database: &Path, offline: bool) -> anyhow::Result<()> {
-    let connection = macdive::establish_connection(database).await?;
-    let critters = crate::macdive::critters(&connection).await?;
+/// Compare MacDive critter names against iNaturalist and report mismatches.
+pub async fn diff_critters(db: &DatabaseManager, offline: bool) -> anyhow::Result<()> {
+    let cache = db.cache();
+    let critters = queries::critters(db.macdive()).await?;
 
     let species = critters
         .iter()
         .filter_map(|c| c.species.as_deref())
         .collect::<Vec<_>>();
 
-    crate::inaturalist::cache_species(&species, offline).await?;
+    inaturalist::cache_species(cache, &species, offline).await?;
 
     for critter in critters {
         if let Some(scientific_name) = critter.species.as_deref() {
             tracing::trace!("Looking up {scientific_name} on iNaturalist");
-            let taxon = match crate::inaturalist::get_taxon_by_name(scientific_name, offline).await
-            {
+            let taxon = match get_taxon_by_name(cache, scientific_name, offline).await {
                 Ok(v) => v,
                 Err(e) => {
                     tracing::warn!(
@@ -82,11 +285,6 @@ pub async fn diff_critters(database: &Path, offline: bool) -> anyhow::Result<()>
 
             let scientific_name = change_case::title_case(scientific_name);
 
-            let mut changeset: CritterUpdate = CritterUpdate {
-                id: critter.id,
-                ..Default::default()
-            };
-
             if let Some(preferred_scientific_name) = taxon.name.as_deref() {
                 let preferred_scientific_name =
                     change_case::sentence_case(preferred_scientific_name);
@@ -97,57 +295,48 @@ pub async fn diff_critters(database: &Path, offline: bool) -> anyhow::Result<()>
                         "Mismatched scientific name: MacDive: {} => iNat: {}",
                         current_scientific_name, preferred_scientific_name
                     );
-                    changeset.scientific_name = Some(preferred_scientific_name);
                 }
             }
 
             match (current_name, preferred_name) {
                 (Some(current_name), Some(preferred_name)) if preferred_name != current_name => {
-                    // TODO: Make this a nice table
                     println!(
                         "Mismatched common name: MacDive {:?} => iNat: {:?}",
                         &current_name, &preferred_name
                     );
-                    changeset.common_name = Some(preferred_name);
                 }
                 (None, Some(preferred_name)) => {
                     println!(
                         "Found new common name for {}: {}",
                         &scientific_name, &preferred_name
                     );
-                    changeset.common_name = Some(preferred_name);
                 }
                 (Some(_), Some(_)) => {
-                    // Pass, names are identical
+                    // Names are identical
                 }
                 (Some(_), None) => {
-                    // Pass, no registered common name in iNaturalist
+                    // No registered common name in iNaturalist
                 }
                 (None, None) => {
                     println!("Woha, no common name for species: {}", &scientific_name)
                 }
             }
-
-            // TODO: Guard with command line flag!
-            // if changeset.has_changes() {
-            //     crate::macdive::update_critter(&changeset, &connection).await?;
-            // }
         }
     }
     Ok(())
 }
 
+/// Compare MacDive critter categories against iNaturalist taxonomy.
 pub async fn diff_critter_categories(
-    database: &Path,
+    db: &DatabaseManager,
     overrides: &CritterCategoryConfig,
     offline: bool,
 ) -> anyhow::Result<()> {
-    let connection = macdive::establish_connection(database).await?;
-
-    let critters = crate::macdive::critters(&connection).await?;
+    let cache = db.cache();
+    let critters = queries::critters(db.macdive()).await?;
 
     // Categories that currently are in MacDive
-    let mut current_categories = crate::macdive::critter_categories(&connection)
+    let mut current_categories = queries::critter_categories(db.macdive())
         .await?
         .into_iter()
         .filter_map(|category| match category.name.as_deref() {
@@ -162,10 +351,10 @@ pub async fn diff_critter_categories(
     let critter_groups: HashMap<String, TaxonGroupName> =
         futures::stream::iter(critters.iter().filter_map(|c| c.species.clone()))
             .filter_map(|scientific_name| async move {
-                let result = crate::inaturalist::get_taxon_by_name(&scientific_name, offline).await;
+                let result = get_taxon_by_name(cache, &scientific_name, offline).await;
                 match result {
                     Ok(taxon) => {
-                        if let Ok(group_name) = taxon.group_name(overrides, offline).await {
+                        if let Ok(group_name) = taxon.group_name(cache, overrides, offline).await {
                             return Some((scientific_name, group_name));
                         }
                     }
@@ -215,21 +404,10 @@ pub async fn diff_critter_categories(
 
             match (current_category, desired_category) {
                 (Some(cc), Some(dc)) if cc.id != dc.id => {
-                    // TODO: Delta
                     eprintln!(
                         "Re-Assigning: {:?} ({:?}): {:?} => {:?}",
                         &critter.name, &critter.species, &cc.name, &dc.name
                     );
-                    // crate::macdive::update_critter(
-                    //     &CritterUpdate {
-                    //         id: critter.id,
-                    //         category: Some(dc.id),
-                    //         common_name: critter.name,
-                    //         ..Default::default()
-                    //     },
-                    //     &connection,
-                    // )
-                    // .await?;
                 }
                 (Some(_), Some(_)) => {
                     // Old and new category are identical
@@ -239,16 +417,6 @@ pub async fn diff_critter_categories(
                         "Assigning: {:?} ({:?}): --- => {:?}",
                         &critter.name, &critter.species, &dc.name
                     );
-                    // crate::macdive::update_critter(
-                    //     &CritterUpdate {
-                    //         id: critter.id,
-                    //         category: Some(dc.id),
-                    //         common_name: critter.name,
-                    //         ..Default::default()
-                    //     },
-                    //     &connection,
-                    // )
-                    // .await?;
                 }
                 (Some(_cc), None) => match &critter_groups.get(scientific_name) {
                     Some(new_category) => {
@@ -276,24 +444,6 @@ pub async fn diff_critter_categories(
                                     "Re-Assigning: {:?} ({:?}): {:?} => {:?}",
                                     &critter.name, &critter.species, &old_name, &new_name
                                 );
-
-                                // crate::macdive::update_critter_category(
-                                //     id,
-                                //     &change_case::title_case(&new_category.to_string()),
-                                //     &connection,
-                                // )
-                                // .await?;
-                                //
-                                // crate::macdive::update_critter(
-                                //     &CritterUpdate {
-                                //         id: critter.id,
-                                //         category: Some(id),
-                                //         common_name: critter.name,
-                                //         ..Default::default()
-                                //     },
-                                //     &connection,
-                                // )
-                                // .await?;
                             }
                             None => {
                                 eprintln!("Brand spanking new category needed: {}", new_category)
@@ -312,14 +462,14 @@ pub async fn diff_critter_categories(
             }
         }
     }
-    // println!("Missing categories: {:#?}", &missing);
     println!("Extraneous categories: {:#?}", &extraneous_categories);
-    // println!("Existing categories: {:#?}", &existing);
 
     Ok(())
 }
 
+/// Prepare a critter import file from a list of species names.
 pub(crate) async fn critter_import(
+    db: &DatabaseManager,
     options: &PrepareImportOptions,
     config: &CritterConfig,
     offline: bool,
@@ -347,6 +497,7 @@ pub(crate) async fn critter_import(
     }
 
     async fn _lookup(
+        cache: &sea_orm::DbConn,
         scientific_name: String,
         categories: &CritterCategoryConfig,
         skip_invalid: bool,
@@ -355,14 +506,14 @@ pub(crate) async fn critter_import(
         let current_name = if offline {
             scientific_name
         } else {
-            globalnames::normalize(&scientific_name)
+            globalnames::normalize(cache, &scientific_name)
                 .await
                 .unwrap_or(scientific_name)
         };
 
-        match crate::inaturalist::get_taxon_by_name(&current_name, offline).await {
+        match get_taxon_by_name(cache, &current_name, offline).await {
             Ok(taxon) => {
-                if let Ok(group_name) = taxon.group_name(categories, offline).await {
+                if let Ok(group_name) = taxon.group_name(cache, categories, offline).await {
                     return Some((taxon, group_name, current_name));
                 }
                 Some((taxon, TaxonGroupName::Unspecified, current_name))
@@ -392,9 +543,17 @@ pub(crate) async fn critter_import(
 
     let names = _import(options, config)?;
 
-    // let pb = ProgressBar::new(names.len() as u64);
+    let cache = db.cache();
     let results = futures::stream::iter(names)
-        .map(|name| _lookup(name, &config.categories, options.skip_invalid, offline))
+        .map(|name| {
+            _lookup(
+                cache,
+                name,
+                &config.categories,
+                options.skip_invalid,
+                offline,
+            )
+        })
         .buffer_unordered(20)
         .collect::<Vec<_>>()
         .await;

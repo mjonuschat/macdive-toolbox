@@ -1,16 +1,15 @@
-use crate::arguments::{MtpOptions, MtpSyncOptions};
-use crate::helpers::fs;
-use crate::helpers::mtp;
-use crate::helpers::mtp::Device;
+use crate::cli::{MtpOptions, MtpSyncOptions};
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
+use macdive_toolbox_core::services::mtp::{self, Device, DeviceSelector};
+use macdive_toolbox_core::util::fs;
 
 pub(crate) fn detect(verbose: u8) -> Result<()> {
-    mtp::detect(verbose)
+    Ok(mtp::detect(verbose)?)
 }
 
-pub(crate) fn listfiles(selector: mtp::types::DeviceSelector, verbose: bool) -> Result<()> {
-    mtp::filetree(selector, verbose)
+pub(crate) fn listfiles(selector: DeviceSelector, verbose: bool) -> Result<()> {
+    Ok(mtp::filetree(selector, verbose)?)
 }
 
 pub(crate) fn sync(config: &MtpOptions, options: &MtpSyncOptions) -> Result<()> {
@@ -29,7 +28,7 @@ pub(crate) fn sync(config: &MtpOptions, options: &MtpSyncOptions) -> Result<()> 
     );
 
     fs::create_dir(&dst_folder)?;
-    let existing = fs::read_existing_activities(&dst_folder);
+    let existing = mtp::read_existing_activities(&dst_folder);
 
     for file in files {
         total_progress.set_message(file.name().to_owned());

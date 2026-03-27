@@ -20,6 +20,12 @@ pub enum ConversionError {
     GeocodingError(#[from] GeocodingError),
 }
 
+impl From<macdive_toolbox_core::error::Error> for ConversionError {
+    fn from(e: macdive_toolbox_core::error::Error) -> Self {
+        ConversionError::GeocodingError(GeocodingError::from(e))
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum GeocodingError {
     #[error("Error talking to Google Maps API")]
@@ -32,24 +38,18 @@ pub enum GeocodingError {
     InvalidGps,
 }
 
-#[derive(Error, Debug)]
-pub enum LightroomTemplateError {
-    #[error("Invalid UUID in Lightroom Template")]
-    InvalidUuid(#[from] uuid::Error),
-    #[error("Invalid reading/writing Lightroom Template")]
-    IoError(#[from] std::io::Error),
-    #[error("Error rendering the Lightroom Template")]
-    Rendering(#[from] askama::Error),
-    #[error("Error parsing existing Lightroom Template")]
-    Parsing,
-}
-
-#[derive(Error, Debug)]
-pub enum DatabaseError {
-    #[error("Invalid path to MacDive database")]
-    InvalidPath,
-    #[error("Error querying MacDive database: `{0}`")]
-    Query(#[from] sqlx::Error),
+impl From<macdive_toolbox_core::error::Error> for GeocodingError {
+    fn from(e: macdive_toolbox_core::error::Error) -> Self {
+        match e {
+            macdive_toolbox_core::error::Error::InvalidLatitude => GeocodingError::InvalidLatitude,
+            macdive_toolbox_core::error::Error::InvalidLongitude => {
+                GeocodingError::InvalidLongitude
+            }
+            macdive_toolbox_core::error::Error::InvalidGps => GeocodingError::InvalidGps,
+            macdive_toolbox_core::error::Error::GeocodingFailed => GeocodingError::GoogleMaps,
+            _ => GeocodingError::GoogleMaps,
+        }
+    }
 }
 
 #[derive(Error, Debug)]
@@ -60,20 +60,4 @@ pub enum PathError {
     DataDir,
     #[error("File or directory `{0}` is not accessible")]
     Inaccessible(String),
-}
-
-#[derive(Debug, Error)]
-pub enum MtpStorageError {
-    #[error("Folder {0} could not be found")]
-    FolderNotFound(String),
-}
-
-#[derive(Error, Debug)]
-pub enum MtpDeviceError {
-    #[error("No MTP device found on USB bus")]
-    NoDeviceAttached,
-    #[error("No device matching selection criteria found")]
-    DeviceNotFound,
-    #[error("FFI error: {0}")]
-    LibMtpError(#[from] libmtp_rs::error::Error),
 }

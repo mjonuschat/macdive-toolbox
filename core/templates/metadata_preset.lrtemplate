@@ -1,0 +1,31 @@
+s = {
+	id = "{{  id|uppercase }}",
+	internalName = {{  title|quote }},
+	title = {{  title|quote }},
+	type = "Metadata",
+	value = {
+        {%- if gps.len() > 0 %}
+		["com.adobe.GPS"] = {{ gps|quote }},
+        {%- endif %}
+        {%- if city.len() > 0 %}
+		["com.adobe.city"] = {{ city|quote }},
+        {%- endif %}
+        {%- if country.len() > 0 %}
+		["com.adobe.country"] = {{ country|quote }},
+        {%- endif %}
+        {%- if iso_country_code.len() > 0 %}
+		["com.adobe.isoCountryCode"] = {{ iso_country_code|uppercase|quote }},
+        {%- endif %}
+        {%- if location.len() > 0 %}
+		["com.adobe.location"] = {{ location|quote }},
+        {%- endif %}
+        {%- if scene > 0 %}
+		["com.adobe.scene"] = "{{ scene }}",
+        {%- endif %}
+        {%- if state.len() > 0 %}
+		["com.adobe.state"] = {{ state|quote }},
+        {%- endif %}
+		uuid = "{{ id|uppercase }}",
+	},
+	version = 0,
+}
