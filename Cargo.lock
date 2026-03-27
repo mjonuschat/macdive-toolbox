@@ -2918,6 +2918,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "macdive-toolbox-core"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.17",
+ "tracing",
+]
+
+[[package]]
 name = "maplit"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
