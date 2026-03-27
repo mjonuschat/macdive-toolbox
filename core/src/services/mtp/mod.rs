@@ -7,7 +7,10 @@ mod device;
 mod files;
 
 pub use device::{Device, DeviceSelector};
-pub use files::{ActivityFolder, detect, filetree, is_activity_file, read_existing_activities};
+pub use files::{
+    ActivityFolder, DetectedDevice, DetectedStorage, DeviceDetectionResult, detect_devices,
+    filetree, is_activity_file, read_existing_activities,
+};
 
 use crate::error::Error;
 
@@ -19,7 +22,7 @@ pub(super) fn map_mtp_error(e: mtp_rs::Error) -> Error {
     if e.is_exclusive_access() {
         Error::Mtp(
             "device claimed by another process. On macOS, try: \
-             sudo launchctl unload /System/Library/LaunchDaemons/com.apple.ptpcamerad.plist"
+             killall ptpcamerad"
                 .to_string(),
         )
     } else {

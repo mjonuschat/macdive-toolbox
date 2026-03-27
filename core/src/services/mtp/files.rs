@@ -222,96 +222,103 @@ impl Device {
 ///
 /// Returns an error if the device list cannot be retrieved or a device cannot
 /// be opened.
-pub async fn detect(verbose: u8) -> Result<()> {
-    tracing::info!("Listing MTP device(s)");
-    let device_infos = list_devices()?;
+/// Information about a detected MTP device and its storages.
+#[derive(Debug)]
+pub struct DetectedDevice {
+    /// Manufacturer name.
+    pub manufacturer: String,
+    /// Model/product name.
+    pub model: String,
+    /// Device serial number.
+    pub serial_number: String,
+    /// Firmware/device version string.
+    pub device_version: String,
+    /// Storage units on the device.
+    pub storages: Vec<DetectedStorage>,
+}
 
-    tracing::info!(
-        count = device_infos.len(),
-        "Found {} device(s)",
-        device_infos.len()
-    );
+/// Information about a single storage unit on a detected device.
+#[derive(Debug)]
+pub struct DetectedStorage {
+    /// Human-readable storage description.
+    pub description: String,
+    /// Maximum capacity in bytes.
+    pub max_capacity: u64,
+    /// Free space in bytes.
+    pub free_space_bytes: u64,
+    /// Storage type (e.g. "FixedRam", "RemovableRam").
+    pub storage_type: String,
+    /// Filesystem type (e.g. "GenericHierarchical").
+    pub filesystem_type: String,
+    /// Volume identifier.
+    pub volume_identifier: String,
+}
+
+/// Result of attempting to open a single detected USB device.
+#[derive(Debug)]
+pub enum DeviceDetectionResult {
+    /// Successfully opened and queried the device.
+    Connected(DetectedDevice),
+    /// Could not open the device.
+    Failed {
+        /// USB vendor ID.
+        vendor_id: u16,
+        /// USB product ID.
+        product_id: u16,
+        /// Error message.
+        error: String,
+    },
+}
+
+/// Detect all connected MTP devices and return their information.
+///
+/// Enumerates USB devices, attempts to open each as an MTP device,
+/// and returns device/storage metadata for display by the caller.
+pub async fn detect_devices() -> Result<Vec<DeviceDetectionResult>> {
+    let device_infos = list_devices()?;
+    let mut results = Vec::new();
 
     for info in &device_infos {
-        tracing::info!(
-            vendor_id = info.vendor_id,
-            product_id = info.product_id,
-            manufacturer = info.manufacturer.as_deref().unwrap_or("(unknown)"),
-            product = info.product.as_deref().unwrap_or("(unknown)"),
-            location_id = info.location_id,
-            "{}: {} ({:04x}:{:04x}) @ location {}",
-            info.manufacturer.as_deref().unwrap_or("(unknown)"),
-            info.product.as_deref().unwrap_or("(unknown)"),
-            info.vendor_id,
-            info.product_id,
-            info.location_id,
-        );
-    }
-
-    tracing::info!("Attempting to connect to device(s)");
-    for (i, info) in device_infos.iter().enumerate() {
         match mtp_rs::mtp::MtpDevice::open_by_location(info.location_id).await {
             Ok(device) => {
-                device_info(&device, verbose).await?;
+                let dev_info = device.device_info();
+                let storages = device.storages().await.map_err(super::map_mtp_error)?;
+
+                let storage_infos = storages
+                    .iter()
+                    .map(|s| {
+                        let si = s.info();
+                        DetectedStorage {
+                            description: si.description.clone(),
+                            max_capacity: si.max_capacity,
+                            free_space_bytes: si.free_space_bytes,
+                            storage_type: format!("{:?}", si.storage_type),
+                            filesystem_type: format!("{:?}", si.filesystem_type),
+                            volume_identifier: si.volume_identifier.clone(),
+                        }
+                    })
+                    .collect();
+
+                results.push(DeviceDetectionResult::Connected(DetectedDevice {
+                    manufacturer: dev_info.manufacturer.clone(),
+                    model: dev_info.model.clone(),
+                    serial_number: dev_info.serial_number.clone(),
+                    device_version: dev_info.device_version.clone(),
+                    storages: storage_infos,
+                }));
             }
             Err(e) => {
                 let err = super::map_mtp_error(e);
-                tracing::warn!(index = i, error = %err, "Unable to open device {}", i);
+                results.push(DeviceDetectionResult::Failed {
+                    vendor_id: info.vendor_id,
+                    product_id: info.product_id,
+                    error: err.to_string(),
+                });
             }
         }
     }
-    Ok(())
-}
 
-/// Prints device and storage information at the requested verbosity level.
-async fn device_info(device: &mtp_rs::mtp::MtpDevice, verbose: u8) -> Result<()> {
-    let info = device.device_info();
-
-    tracing::info!(
-        manufacturer = %info.manufacturer,
-        model = %info.model,
-        serial = %info.serial_number,
-        "Device info"
-    );
-
-    if verbose >= 2 {
-        tracing::info!(
-            device_version = %info.device_version,
-            vendor_extension_id = info.vendor_extension_id,
-            vendor_extension_version = info.vendor_extension_version,
-            vendor_extension_desc = %info.vendor_extension_desc,
-            "Extended device info"
-        );
-    }
-
-    let storages = device.storages().await.map_err(super::map_mtp_error)?;
-
-    for storage in &storages {
-        let si = storage.info();
-        if verbose >= 1 {
-            tracing::info!(
-                storage_id = ?storage.id(),
-                description = %si.description,
-                max_capacity = si.max_capacity,
-                storage_type = ?si.storage_type,
-                filesystem_type = ?si.filesystem_type,
-                access_capability = ?si.access_capability,
-                free_space_bytes = si.free_space_bytes,
-                free_space_objects = si.free_space_objects,
-                volume_identifier = %si.volume_identifier,
-                "Storage device"
-            );
-        } else {
-            tracing::info!(
-                storage_id = ?storage.id(),
-                description = %si.description,
-                max_capacity = si.max_capacity,
-                "Storage device"
-            );
-        }
-    }
-
-    Ok(())
+    Ok(results)
 }
 
 /// Opens the device matching `selector` and displays its full file tree.

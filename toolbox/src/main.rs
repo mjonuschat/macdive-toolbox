@@ -84,6 +84,7 @@ fn setup_logging(verbose: u8) -> Result<()> {
         .with(
             Targets::default()
                 .with_target("macdive_toolbox", log_level)
+                .with_target("macdive_toolbox_core", log_level)
                 .with_target("surf", LevelFilter::OFF),
         )
         .init();
