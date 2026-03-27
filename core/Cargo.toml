@@ -4,5 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+celes = "2.4.0"
+change-case = "0.2.0"
+chrono = "0.4.19"
+geo = { version = "0.32.0", features = ["serde"] }
+google_maps = "3.1.1"
+rust_decimal = "1.9.0"
+rust_decimal_macros = "1.9.0"
+serde = { version = "1.0.126", features = ["derive"] }
 thiserror = "2.0"
 tracing = "0.1"
+uuid = { version = "1.3.0", features = ["serde", "v4"] }

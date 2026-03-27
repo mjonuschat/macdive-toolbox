@@ -6,6 +6,14 @@
 pub enum Error {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+    #[error("invalid latitude")]
+    InvalidLatitude,
+    #[error("invalid longitude")]
+    InvalidLongitude,
+    #[error("invalid GPS coordinates")]
+    InvalidGps,
+    #[error("geocoding API failed")]
+    GeocodingFailed,
 }
 
 /// Convenience alias used throughout the core crate.

@@ -20,6 +20,12 @@ pub enum ConversionError {
     GeocodingError(#[from] GeocodingError),
 }
 
+impl From<macdive_toolbox_core::error::Error> for ConversionError {
+    fn from(e: macdive_toolbox_core::error::Error) -> Self {
+        ConversionError::GeocodingError(GeocodingError::from(e))
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum GeocodingError {
     #[error("Error talking to Google Maps API")]
@@ -30,6 +36,20 @@ pub enum GeocodingError {
     InvalidLongitude,
     #[error("Invalid GPS coordinates for dive site")]
     InvalidGps,
+}
+
+impl From<macdive_toolbox_core::error::Error> for GeocodingError {
+    fn from(e: macdive_toolbox_core::error::Error) -> Self {
+        match e {
+            macdive_toolbox_core::error::Error::InvalidLatitude => GeocodingError::InvalidLatitude,
+            macdive_toolbox_core::error::Error::InvalidLongitude => {
+                GeocodingError::InvalidLongitude
+            }
+            macdive_toolbox_core::error::Error::InvalidGps => GeocodingError::InvalidGps,
+            macdive_toolbox_core::error::Error::GeocodingFailed => GeocodingError::GoogleMaps,
+            _ => GeocodingError::GoogleMaps,
+        }
+    }
 }
 
 #[derive(Error, Debug)]
