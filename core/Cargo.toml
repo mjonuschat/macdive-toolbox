@@ -10,6 +10,7 @@ chrono = "0.4.19"
 geo = { version = "0.32.0", features = ["serde"] }
 google_maps = "3.1.1"
 governor = "0.10.0"
+nom = "8.0.0"
 nonzero_ext = "0.3.0"
 rust_decimal = "1.9.0"
 rust_decimal_macros = "1.9.0"

@@ -16,6 +16,8 @@ pub enum Error {
     GeocodingFailed,
     #[error("configuration error: {0}")]
     Config(String),
+    #[error("species name parse error: {0}")]
+    ParseError(String),
 }
 
 /// Convenience alias used throughout the core crate.

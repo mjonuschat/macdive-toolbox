@@ -2927,6 +2927,7 @@ dependencies = [
  "geo",
  "google_maps",
  "governor",
+ "nom 8.0.0",
  "nonzero_ext",
  "rust_decimal",
  "rust_decimal_macros",
