@@ -1,10 +1,10 @@
-use macdive_toolbox_core::util::rate_limit::{ApiRateLimiter, create_rate_limiter};
-use std::sync::LazyLock;
-
-mod helpers;
 pub(crate) mod types;
 
-pub use helpers::*;
+// Re-export the full public API surface from core so callers within this crate (and future
+// consumers) can import from a single, stable path. Some items may not be used yet while
+// the migration is in progress.
+#[allow(unused_imports)]
+pub use macdive_toolbox_core::services::inaturalist::{
+    Taxon, cache_species, get_taxon_by_id, get_taxon_by_ids, get_taxon_by_name,
+};
 pub use types::*;
-
-static INAT_API_LIMIT: LazyLock<ApiRateLimiter> = LazyLock::new(|| create_rate_limiter(60));

@@ -1,11 +1,86 @@
+//! iNaturalist API types and model structs.
+//!
+//! These correspond to the iNaturalist API v2 schema.
+//! See <http://api.inaturalist.org/v2/docs/>.
+
+use std::sync::LazyLock;
+
 use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
 
-/// iNaturalist API v2 Schema
-/// @see http://api.inaturalist.org/v2/docs/
+/// JSON fields specification sent with every iNaturalist API v2 request
+/// to control which fields are returned in the response.
+pub(crate) static TAXON_FIELDS: LazyLock<Value> = LazyLock::new(|| {
+    json!(
+        {
+            "fields": {
+                "id": true,
+                "uuid": true,
+                "ancestor_ids": true,
+                "ancestry": true,
+                "complete_rank": true,
+                "conservation_status": {
+                    "authority": true,
+                    "description": true,
+                    "iucn": true,
+                    "iucn_status": true,
+                    "iucn_status_code": true,
+                    "status": true,
+                    "status_name": true,
+                    "url": true,
+                },
+                "default_photo": {
+                        "id": true,
+                        "attribution": true,
+                        "large_url": true,
+                        "license_code": true,
+                        "medium_url": true,
+                        "native_page_url": true,
+                        "native_photo_id": true,
+                        "original_dimensions": true,
+                        "original_url": true,
+                        "small_url": true,
+                        "square_url": true,
+                        "type": true,
+                        "url": true,
+                },
+                "endemic": true,
+                "iconic_taxon_name": true,
+                "is_active": true,
+                "name": true,
+                "native": true,
+                "observations_count": true,
+                "parent_id": true,
+                "preferred_common_name": true,
+                "rank": true,
+                "rank_level": true,
+                "threatened": true,
+                "wikipedia_summary": true,
+                "wikipedia_url": true
+            }
+        }
+    )
+});
 
+/// Query parameters for the taxa autocomplete endpoint.
+#[derive(Debug, Deserialize, Serialize)]
+pub(crate) struct TaxaAutocompleteQuery {
+    pub q: String,
+}
+
+/// Paginated response wrapper for taxa results.
+#[derive(Debug, Deserialize, Serialize)]
+pub(crate) struct ResultsTaxa {
+    pub total_results: i32,
+    pub page: i32,
+    pub per_page: i32,
+    pub results: Vec<Taxon>,
+}
+
+/// A taxon record from the iNaturalist API v2.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Taxon {
-    /// Unique auto-increment integer identifier
+    /// Unique auto-increment integer identifier.
     pub id: i32,
     pub uuid: Option<String>,
     pub ancestors: Option<Vec<Self>>,
@@ -41,7 +116,7 @@ pub struct Taxon {
     pub native: bool,
     pub observations_count: Option<i32>,
     pub parent_id: Option<i32>,
-    /// Whether or not photos for this taxon can be edited
+    /// Whether or not photos for this taxon can be edited.
     #[serde(default)]
     pub photos_locked: bool,
     pub preferred_common_name: Option<String>,
@@ -59,6 +134,7 @@ pub struct Taxon {
     pub wikipedia_url: Option<String>,
 }
 
+/// IUCN conservation status for a taxon.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ConservationStatus {
     pub authority: Option<String>,
@@ -76,6 +152,7 @@ pub struct ConservationStatus {
     pub url: Option<String>,
 }
 
+/// A photo associated with a taxon.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Photo {
     pub id: i32,
@@ -94,12 +171,14 @@ pub struct Photo {
     pub url: Option<String>,
 }
 
+/// Count of resolved/unresolved flags on a taxon.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct FlagCounts {
     pub resolved: Option<i32>,
     pub unresolved: Option<i32>,
 }
 
+/// A taxon listed in a specific place or checklist.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ListedTaxon {
     pub id: i32,
@@ -110,6 +189,7 @@ pub struct ListedTaxon {
     pub place: Option<Place>,
 }
 
+/// A flag (moderation annotation) on a record.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Flag {
     pub id: i32,
@@ -124,6 +204,7 @@ pub struct Flag {
     pub user_id: Option<i32>,
 }
 
+/// A photo linked to a taxon with its parent taxon reference.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TaxonPhoto {
     pub taxon: Option<Taxon>,
@@ -131,6 +212,7 @@ pub struct TaxonPhoto {
     pub photo: Option<Photo>,
 }
 
+/// A geographic place from the iNaturalist taxonomy.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Place {
     pub id: i32,
@@ -144,12 +226,14 @@ pub struct Place {
     pub uuid: Option<String>,
 }
 
+/// Simplified GeoJSON geometry (point coordinates).
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GeoJson {
     pub coordinates: Option<(f64, f64)>,
     pub r#type: Option<String>,
 }
 
+/// An iNaturalist user profile.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct User {
     pub id: i32,
@@ -167,7 +251,6 @@ pub struct User {
     pub name_autocomplete: Option<String>,
     pub observations_count: Option<i32>,
     pub orcid: Option<String>,
-    // pub preferences: UserPreference
     pub roles: Option<Vec<String>>,
     pub site_id: Option<i32>,
     #[serde(default)]
@@ -178,12 +261,14 @@ pub struct User {
     pub universal_search_rank: Option<i32>,
 }
 
+/// Pixel dimensions of an original photo.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct OriginalDimensions {
     pub width: Option<i32>,
     pub height: Option<i32>,
 }
 
+/// A checklist or list that a taxon belongs to.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct List {
     pub id: Option<i32>,

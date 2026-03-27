@@ -20,6 +20,12 @@ pub enum Error {
     ParseError(String),
     #[error("database error: {0}")]
     Database(#[from] sea_orm::DbErr),
+    #[error("iNaturalist API error: {0}")]
+    INaturalist(String),
+    #[error("HTTP request failed: {0}")]
+    Http(#[from] reqwest::Error),
+    #[error("JSON serialization error: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 /// Convenience alias used throughout the core crate.

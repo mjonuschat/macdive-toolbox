@@ -1,11 +1,7 @@
-mod api;
-mod models;
-
 use crate::inaturalist::get_taxon_by_id;
 use crate::types::CritterCategoryConfig;
-pub(in crate::inaturalist) use api::*;
 pub use macdive_toolbox_core::domain::TaxonGroupName;
-pub use models::*;
+pub use macdive_toolbox_core::services::inaturalist::types::Taxon;
 use sea_orm::DbConn;
 
 /// Trait for resolving a taxon's category group name from its ancestry.
@@ -26,6 +22,7 @@ pub trait TaxonCategoryName {
     ) -> anyhow::Result<TaxonGroupName>;
 }
 
+// TODO: Consider moving TaxonCategoryName to core once anyhow is removed from its signature
 #[async_trait::async_trait]
 impl TaxonCategoryName for Taxon {
     async fn group_name(
