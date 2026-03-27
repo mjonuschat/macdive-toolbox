@@ -10,7 +10,6 @@ askama = "0.15.0"
 celes = "2.4.0"
 change-case = "0.2.0"
 chrono = "0.4.19"
-geo = { version = "0.32.0", features = ["serde"] }
 google_maps = "3.1.1"
 governor = "0.10.0"
 nom = "8.0.0"

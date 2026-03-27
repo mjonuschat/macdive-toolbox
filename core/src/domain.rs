@@ -262,8 +262,47 @@ pub struct LocationOverride {
 }
 
 impl LocationOverride {
-    pub fn polygon(&self) -> geo::Polygon<f64> {
-        geo::Polygon::new(geo::LineString::from(self.area.clone()), vec![])
+    /// Test whether a GPS coordinate falls within this override's polygon.
+    ///
+    /// Uses the ray casting algorithm: cast a horizontal ray from the point
+    /// and count how many polygon edges it crosses. An odd count means the
+    /// point is inside. The polygon is implicitly closed (last vertex connects
+    /// back to the first).
+    ///
+    /// Vertices in `area` use geographic convention: `(longitude, latitude)`.
+    ///
+    /// # Arguments
+    /// * `latitude` - WGS84 latitude in decimal degrees
+    /// * `longitude` - WGS84 longitude in decimal degrees
+    pub fn contains(&self, latitude: f64, longitude: f64) -> bool {
+        let vertices = &self.area;
+        if vertices.len() < 3 {
+            return false;
+        }
+
+        let (px, py) = (longitude, latitude);
+        let mut inside = false;
+        let n = vertices.len();
+
+        // Walk each edge of the polygon. For each edge from vertex j to
+        // vertex i, check whether a horizontal ray from (px, py) going
+        // in the +x direction crosses that edge.
+        let mut j = n - 1;
+        for i in 0..n {
+            let (xi, yi) = vertices[i];
+            let (xj, yj) = vertices[j];
+
+            // The edge straddles the ray's y-coordinate when exactly one
+            // endpoint is above py and the other is at or below py.
+            let intersects = (yi > py) != (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi;
+
+            if intersects {
+                inside = !inside;
+            }
+            j = i;
+        }
+
+        inside
     }
 }
 
@@ -388,6 +427,81 @@ mod tests {
             latlng.to_dms().unwrap()
         );
     }
+
+    // --- Point-in-polygon tests ---
+
+    /// Helper: build a LocationOverride with just an area polygon.
+    fn override_with_area(area: Vec<(f64, f64)>) -> LocationOverride {
+        LocationOverride {
+            area,
+            country: None,
+            iso_country_code: None,
+            state: None,
+            region: None,
+            locality: None,
+        }
+    }
+
+    #[test]
+    fn test_contains_point_inside_square() {
+        // Simple square: (0,0), (10,0), (10,10), (0,10)
+        let poly = override_with_area(vec![(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]);
+        // Point (5, 5) is inside -- lat=5, lon=5
+        assert!(poly.contains(5.0, 5.0));
+    }
+
+    #[test]
+    fn test_contains_point_outside_square() {
+        let poly = override_with_area(vec![(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]);
+        // Point (15, 5) is outside
+        assert!(!poly.contains(5.0, 15.0));
+    }
+
+    #[test]
+    fn test_contains_point_inside_triangle() {
+        // Triangle: (0,0), (10,0), (5,10)
+        let poly = override_with_area(vec![(0.0, 0.0), (10.0, 0.0), (5.0, 10.0)]);
+        // Centroid (5, 3.33) is inside
+        assert!(poly.contains(3.33, 5.0));
+    }
+
+    #[test]
+    fn test_contains_point_outside_triangle() {
+        let poly = override_with_area(vec![(0.0, 0.0), (10.0, 0.0), (5.0, 10.0)]);
+        // Point (1, 9) is outside (left of the triangle's left edge at that latitude)
+        assert!(!poly.contains(9.0, 1.0));
+    }
+
+    #[test]
+    fn test_contains_degenerate_polygon() {
+        // Fewer than 3 vertices: always false
+        let line = override_with_area(vec![(0.0, 0.0), (10.0, 10.0)]);
+        assert!(!line.contains(5.0, 5.0));
+
+        let point = override_with_area(vec![(5.0, 5.0)]);
+        assert!(!point.contains(5.0, 5.0));
+
+        let empty = override_with_area(vec![]);
+        assert!(!empty.contains(0.0, 0.0));
+    }
+
+    #[test]
+    fn test_contains_real_world_bonaire() {
+        // Rough polygon around Bonaire (Caribbean island)
+        // Vertices as (longitude, latitude)
+        let bonaire = override_with_area(vec![
+            (-68.45, 12.35),
+            (-68.20, 12.35),
+            (-68.20, 12.05),
+            (-68.45, 12.05),
+        ]);
+        // Kralendijk, Bonaire: lat 12.15, lon -68.27
+        assert!(bonaire.contains(12.15, -68.27));
+        // Willemstad, Curacao: lat 12.17, lon -68.98 (outside)
+        assert!(!bonaire.contains(12.17, -68.98));
+    }
+
+    // --- NSDate tests ---
 
     #[test]
     fn test_nsdate_epoch() {

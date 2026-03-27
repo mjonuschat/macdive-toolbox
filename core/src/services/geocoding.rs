@@ -10,7 +10,6 @@
 
 use std::convert::TryInto;
 
-use geo::{Coord, contains::Contains};
 use google_maps::{ClientSettings, LatLng, PlaceType};
 
 use crate::domain::{DiveSite, LocationOverride};
@@ -36,12 +35,9 @@ fn find_override(
     longitude: f64,
     overrides: &[LocationOverride],
 ) -> Option<&LocationOverride> {
-    overrides.iter().find(|location| {
-        location.polygon().contains(&Coord {
-            x: longitude,
-            y: latitude,
-        })
-    })
+    overrides
+        .iter()
+        .find(|location| location.contains(latitude, longitude))
 }
 
 /// Apply user-defined location overrides to a dive site.
