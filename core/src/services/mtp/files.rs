@@ -136,22 +136,13 @@ impl Device {
         for (i, (_id, storage)) in storage_pool.iter().enumerate() {
             let result = Self::find_folder_recursive(path, storage, None)?;
             if let Some(folder) = result {
-                println!(
-                    "Found {} folder on Storage {}:",
-                    path.to_string_lossy(),
-                    i + 1
-                );
-                println!(
-                    "  Description: {}",
-                    storage.description().unwrap_or("Unknown")
-                );
-                println!(
-                    "  Max. capacity: {}",
-                    bytefmt::format(storage.maximum_capacity())
-                );
-                println!(
-                    "  Free space: {}",
-                    bytefmt::format(storage.free_space_in_bytes())
+                tracing::info!(
+                    path = %path.to_string_lossy(),
+                    storage_index = i + 1,
+                    description = storage.description().unwrap_or("Unknown"),
+                    max_capacity = %bytefmt::format(storage.maximum_capacity()),
+                    free_space = %bytefmt::format(storage.free_space_in_bytes()),
+                    "Found activity folder on storage"
                 );
                 return Ok(ActivityFolder {
                     storage_id: storage.id(),
@@ -203,14 +194,24 @@ impl Device {
 ///
 /// Returns an error if the device list cannot be retrieved.
 pub fn detect(verbose: u8) -> Result<()> {
-    println!("Listing raw device(s)");
+    tracing::info!("Listing raw device(s)");
     let raw_devices = get_raw_devices()?;
 
-    println!("   Found {} device(s):", raw_devices.len());
+    tracing::info!(
+        count = raw_devices.len(),
+        "Found {} device(s)",
+        raw_devices.len()
+    );
     for raw_device in raw_devices.iter() {
         let entry = raw_device.device_entry();
-        println!(
-            "   {}: {} ({:04x}:{:04x}) @ bus {}, dev {}",
+        tracing::info!(
+            vendor = %entry.vendor,
+            product = %entry.product,
+            vendor_id = entry.vendor_id,
+            product_id = entry.product_id,
+            bus = raw_device.bus_number(),
+            dev = raw_device.dev_number(),
+            "{}: {} ({:04x}:{:04x}) @ bus {}, dev {}",
             entry.vendor,
             entry.product,
             entry.vendor_id,
@@ -220,7 +221,7 @@ pub fn detect(verbose: u8) -> Result<()> {
         );
     }
 
-    println!("Attempting to connect to device(s)");
+    tracing::info!("Attempting to connect to device(s)");
     for (i, raw_device) in raw_devices.iter().enumerate() {
         match raw_device.open_uncached() {
             Some(device) => match verbose {
@@ -229,7 +230,7 @@ pub fn detect(verbose: u8) -> Result<()> {
                 _ => device.dump_device_info(),
             },
             None => {
-                println!("Unable to open raw device {}", i);
+                tracing::warn!(index = i, "Unable to open raw device {}", i);
             }
         }
     }
@@ -237,53 +238,45 @@ pub fn detect(verbose: u8) -> Result<()> {
 }
 
 fn device_info(mut device: MtpDevice, verbose: bool) -> Result<()> {
-    println!("Device info:");
-    println!(
-        "   Manufacturer: {}",
-        device
-            .manufacturer_name()
-            .map_err(|e| Error::Mtp(e.to_string()))?
-    );
-    println!(
-        "   Model: {}",
-        device.model_name().map_err(|e| Error::Mtp(e.to_string()))?
-    );
-    println!(
-        "   Serial number: {}",
-        device
-            .serial_number()
-            .map_err(|e| Error::Mtp(e.to_string()))?
+    let manufacturer = device
+        .manufacturer_name()
+        .map_err(|e| Error::Mtp(e.to_string()))?;
+    let model = device.model_name().map_err(|e| Error::Mtp(e.to_string()))?;
+    let serial = device
+        .serial_number()
+        .map_err(|e| Error::Mtp(e.to_string()))?;
+
+    tracing::info!(
+        manufacturer = %manufacturer,
+        model = %model,
+        serial = %serial,
+        "Device info"
     );
 
     device
         .update_storage(StorageSort::NotSorted)
         .map_err(|e| Error::Mtp(e.to_string()))?;
-    println!("\n   Storage Devices:");
+
     for (_id, storage) in device.storage_pool().iter() {
-        println!("      StorageID: 0x{:08x}", storage.id());
-        println!(
-            "         StorageDescription: {}",
-            storage.description().unwrap_or("(null)")
-        );
-        println!("         MaxCapacity: {:?}", storage.maximum_capacity());
         if verbose {
-            println!("         StorageType: {:?}", storage.storage_type());
-            println!("         FilesystemType: {:?}", storage.filesystem_type());
-            println!(
-                "         AccessCapability: {:?}",
-                storage.access_capability()
+            tracing::info!(
+                storage_id = storage.id(),
+                description = storage.description().unwrap_or("(null)"),
+                max_capacity = storage.maximum_capacity(),
+                storage_type = ?storage.storage_type(),
+                filesystem_type = ?storage.filesystem_type(),
+                access_capability = ?storage.access_capability(),
+                free_space_bytes = storage.free_space_in_bytes(),
+                free_space_objects = storage.free_space_in_objects(),
+                volume_identifier = storage.volume_identifier().unwrap_or("(null)"),
+                "Storage device"
             );
-            println!(
-                "         FreeSpaceInBytes: {:?}",
-                storage.free_space_in_bytes()
-            );
-            println!(
-                "         FreeSpaceInObjects: {:?}",
-                storage.free_space_in_objects()
-            );
-            println!(
-                "         VolumeIdentifier: {}",
-                storage.volume_identifier().unwrap_or("(null)")
+        } else {
+            tracing::info!(
+                storage_id = storage.id(),
+                description = storage.description().unwrap_or("(null)"),
+                max_capacity = storage.maximum_capacity(),
+                "Storage device"
             );
         }
     }
@@ -322,7 +315,7 @@ pub fn filetree(selector: DeviceSelector, verbose: bool) -> Result<()> {
 
         match result {
             Some(tree) => ptree::print_tree(&tree).map_err(Error::Io)?,
-            None => println!("Storage: {} - no activity files found", &name),
+            None => tracing::info!(storage = %name, "Storage: {} - no activity files found", &name),
         }
     }
 

@@ -73,11 +73,12 @@ impl Device {
         let raw_devices = get_raw_devices()?;
 
         if raw_devices.len() > 1 && matches!(selector, DeviceSelector::First) {
-            println!(
-                "Found {} MTP devices, defaulting to first one found.",
+            tracing::warn!(
+                count = raw_devices.len(),
+                "Found {} MTP devices, defaulting to first one found. \
+                 Please select a specific device using manufacturer/model/serial number",
                 raw_devices.len()
             );
-            println!("Please select a specific device using manufacturer/model/serial number");
         }
 
         for raw_device in raw_devices {
@@ -109,9 +110,12 @@ impl Device {
                 },
                 None => {
                     let entry = raw_device.device_entry();
-                    println!(
-                        "Could not open device (Vendor {:04x}, Product {:04x}), skipping...",
-                        entry.vendor_id, entry.product_id
+                    tracing::warn!(
+                        vendor_id = entry.vendor_id,
+                        product_id = entry.product_id,
+                        "Could not open device (Vendor {:04x}, Product {:04x}), skipping",
+                        entry.vendor_id,
+                        entry.product_id
                     );
                 }
             }
