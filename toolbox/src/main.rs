@@ -12,16 +12,14 @@ use tracing_subscriber::filter::{LevelFilter, Targets};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-mod arguments;
+mod cli;
 mod commands;
 mod errors;
-mod helpers;
-mod inaturalist;
-mod parsers;
+mod progress;
 mod types;
 
-use crate::arguments::{CritterCommands, LightroomCommands, MtpCommands};
-use arguments::{Cli, Commands};
+use crate::cli::{CritterCommands, LightroomCommands, MtpCommands};
+use cli::{Cli, Commands};
 
 fn setup_logging(verbose: u8) -> Result<()> {
     let log_level = match verbose {
@@ -38,7 +36,7 @@ fn setup_logging(verbose: u8) -> Result<()> {
             )?
                 .with_key(
                     "elapsed_subsec",
-                    helpers::progress::elapsed_subsec,
+                    progress::elapsed_subsec,
                 )
                 .with_key(
                     "color_start",

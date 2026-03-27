@@ -1,17 +1,227 @@
-use crate::arguments::{MacdiveImportFormat, PrepareImportOptions};
-use crate::helpers::globalnames;
-use crate::helpers::progress::header;
-use crate::inaturalist::{Taxon, TaxonCategoryName, TaxonGroupName};
-use crate::parsers::species::sanitize_species_name;
-use crate::types::{CritterCategoryConfig, CritterConfig};
+use crate::cli::{MacdiveImportFormat, PrepareImportOptions};
+use crate::progress::header;
 use futures::StreamExt;
 use macdive_toolbox_core::db::DatabaseManager;
+use macdive_toolbox_core::domain::{CritterCategoryConfig, CritterConfig, TaxonGroupName};
 use macdive_toolbox_core::macdive::queries;
+use macdive_toolbox_core::parsers::species::sanitize_species_name;
+use macdive_toolbox_core::services::globalnames;
+use macdive_toolbox_core::services::inaturalist::{
+    self, Taxon, get_taxon_by_id, get_taxon_by_name,
+};
+use sea_orm::DbConn;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use tracing::instrument;
+
+/// Trait for resolving a taxon's category group name from its ancestry.
+#[async_trait::async_trait]
+trait TaxonCategoryName {
+    /// Walk the taxon's ancestor chain and determine its category group name.
+    ///
+    /// # Arguments
+    ///
+    /// * `db` - Cache database connection for ancestor lookups
+    /// * `overrides` - User-supplied category configuration overrides
+    /// * `offline` - When true, only use cached ancestor data
+    async fn group_name(
+        &self,
+        db: &DbConn,
+        overrides: &CritterCategoryConfig,
+        offline: bool,
+    ) -> anyhow::Result<TaxonGroupName>;
+}
+
+#[async_trait::async_trait]
+impl TaxonCategoryName for Taxon {
+    async fn group_name(
+        &self,
+        db: &DbConn,
+        overrides: &CritterCategoryConfig,
+        offline: bool,
+    ) -> anyhow::Result<TaxonGroupName> {
+        let mut group = TaxonGroupName::Unspecified;
+        if let Some(ancestor_ids) = &self.ancestor_ids {
+            for ancestor_id in ancestor_ids.iter() {
+                let ancestor = get_taxon_by_id(db, *ancestor_id, offline).await?;
+                match ancestor.rank.as_deref() {
+                    Some("phylum") => {
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Phylum(name);
+                        }
+                    }
+                    Some("subphylum") => {
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Subphylum(name);
+                        }
+                    }
+                    Some("class") => {
+                        if group.prefer_higher_common_name("class", overrides) {
+                            continue;
+                        }
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Class(name);
+                        }
+                    }
+                    Some("subclass")
+                        if matches!(
+                            group,
+                            TaxonGroupName::Phylum(_) | TaxonGroupName::Class(_)
+                        ) =>
+                    {
+                        if group.prefer_higher_common_name("subclass", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Subclass(name)
+                        }
+                    }
+                    Some("infraclass")
+                        if matches!(
+                            group,
+                            TaxonGroupName::Phylum(_)
+                                | TaxonGroupName::Class(_)
+                                | TaxonGroupName::Subclass(_)
+                        ) =>
+                    {
+                        if group.prefer_higher_common_name("infraclass", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Infraclass(name)
+                        }
+                    }
+                    Some("superorder")
+                        if matches!(
+                            group,
+                            TaxonGroupName::Phylum(_)
+                                | TaxonGroupName::Class(_)
+                                | TaxonGroupName::Subclass(_)
+                                | TaxonGroupName::Infraclass(_)
+                        ) =>
+                    {
+                        if group.prefer_higher_common_name("superorder", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Superorder(name)
+                        }
+                    }
+                    Some("order")
+                        if matches!(
+                            group,
+                            TaxonGroupName::Phylum(_)
+                                | TaxonGroupName::Class(_)
+                                | TaxonGroupName::Subclass(_)
+                                | TaxonGroupName::Infraclass(_)
+                                | TaxonGroupName::Superorder(_)
+                        ) =>
+                    {
+                        if group.prefer_higher_common_name("order", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Order(name)
+                        }
+                    }
+                    Some("suborder") if matches!(group, TaxonGroupName::Order(_)) => {
+                        if group.prefer_higher_common_name("suborder", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Suborder(name)
+                        }
+                    }
+                    Some("infraorder")
+                        if matches!(
+                            group,
+                            TaxonGroupName::Phylum(_)
+                                | TaxonGroupName::Class(_)
+                                | TaxonGroupName::Subclass(_)
+                                | TaxonGroupName::Superorder(_)
+                                | TaxonGroupName::Suborder(_)
+                        ) =>
+                    {
+                        if group.prefer_higher_common_name("infraorder", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Infraorder(name)
+                        }
+                    }
+                    Some("superfamily")
+                        if matches!(
+                            group,
+                            TaxonGroupName::Order(_)
+                                | TaxonGroupName::Infraclass(_)
+                                | TaxonGroupName::Subclass(_)
+                                | TaxonGroupName::Infraorder(_)
+                        ) =>
+                    {
+                        if group.prefer_higher_common_name("superfamily", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Superfamily(name)
+                        }
+                    }
+                    Some("family")
+                        if matches!(
+                            group,
+                            TaxonGroupName::Phylum(_)
+                                | TaxonGroupName::Order(_)
+                                | TaxonGroupName::Infraorder(_)
+                                | TaxonGroupName::Subclass(_)
+                                | TaxonGroupName::Superfamily(_)
+                        ) =>
+                    {
+                        if group.prefer_higher_common_name("family", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Family(name)
+                        }
+                    }
+                    Some("subfamily") if matches!(group, TaxonGroupName::Family(_)) => {
+                        if group.prefer_higher_common_name("subfamily", overrides) {
+                            continue;
+                        }
+
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Subfamily(name);
+                        }
+                    }
+                    Some("genus") if matches!(group, TaxonGroupName::Subfamily(_)) => {
+                        if group.prefer_higher_common_name("genus", overrides) {
+                            continue;
+                        }
+                        if let Some(name) = ancestor.preferred_common_name {
+                            group = TaxonGroupName::Genus(name);
+                        }
+                    }
+                    Some("species") => {
+                        if let Some(v) = overrides.group_names.get(&group.to_string()) {
+                            group = TaxonGroupName::Custom(v.to_owned())
+                        }
+                    }
+                    Some(_) | None => {}
+                }
+            }
+        }
+
+        Ok(group)
+    }
+}
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 struct CritterItem {
@@ -48,14 +258,12 @@ pub async fn diff_critters(db: &DatabaseManager, offline: bool) -> anyhow::Resul
         .filter_map(|c| c.species.as_deref())
         .collect::<Vec<_>>();
 
-    crate::inaturalist::cache_species(cache, &species, offline).await?;
+    inaturalist::cache_species(cache, &species, offline).await?;
 
     for critter in critters {
         if let Some(scientific_name) = critter.species.as_deref() {
             tracing::trace!("Looking up {scientific_name} on iNaturalist");
-            let taxon = match crate::inaturalist::get_taxon_by_name(cache, scientific_name, offline)
-                .await
-            {
+            let taxon = match get_taxon_by_name(cache, scientific_name, offline).await {
                 Ok(v) => v,
                 Err(e) => {
                     tracing::warn!(
@@ -143,8 +351,7 @@ pub async fn diff_critter_categories(
     let critter_groups: HashMap<String, TaxonGroupName> =
         futures::stream::iter(critters.iter().filter_map(|c| c.species.clone()))
             .filter_map(|scientific_name| async move {
-                let result =
-                    crate::inaturalist::get_taxon_by_name(cache, &scientific_name, offline).await;
+                let result = get_taxon_by_name(cache, &scientific_name, offline).await;
                 match result {
                     Ok(taxon) => {
                         if let Ok(group_name) = taxon.group_name(cache, overrides, offline).await {
@@ -304,7 +511,7 @@ pub(crate) async fn critter_import(
                 .unwrap_or(scientific_name)
         };
 
-        match crate::inaturalist::get_taxon_by_name(cache, &current_name, offline).await {
+        match get_taxon_by_name(cache, &current_name, offline).await {
             Ok(taxon) => {
                 if let Ok(group_name) = taxon.group_name(cache, categories, offline).await {
                     return Some((taxon, group_name, current_name));

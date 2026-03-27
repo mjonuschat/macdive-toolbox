@@ -2,9 +2,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use clap::{ArgAction, ColorChoice, ValueHint};
+use macdive_toolbox_core::domain::{ApplicationConfig, CritterConfig};
+use macdive_toolbox_core::services::mtp::DeviceSelector;
 
 use crate::errors::PathError;
-use crate::types::{ApplicationConfig, CritterConfig};
 
 static LIGHTROOM_DATA: &str = "Adobe/Lightroom/Metadata Presets/";
 static MACDIVE_DATA: &str = "MacDive/MacDive.sqlite";
@@ -161,6 +162,21 @@ pub(crate) struct MtpOptions {
     /// Select device by serial number
     #[clap(short, long, conflicts_with_all=&["model", "manufacturer"])]
     pub serial: Option<String>,
+}
+
+/// Convert CLI MTP device selection options into a core `DeviceSelector`.
+impl From<MtpOptions> for DeviceSelector {
+    fn from(params: MtpOptions) -> Self {
+        if let Some(serial) = params.serial {
+            DeviceSelector::SerialNumber(serial)
+        } else if let Some(model) = params.model {
+            DeviceSelector::ModelName(model)
+        } else if let Some(manufacturer) = params.manufacturer {
+            DeviceSelector::ManufacturerName(manufacturer)
+        } else {
+            DeviceSelector::First
+        }
+    }
 }
 
 #[derive(Debug, clap::Args)]

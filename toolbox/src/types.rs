@@ -1,8 +1,7 @@
 use std::str::FromStr;
 
+use macdive_toolbox_core::domain::DiveSite;
 use uuid::Uuid;
-
-pub use macdive_toolbox_core::domain::*;
 
 use crate::errors::ConversionError;
 
