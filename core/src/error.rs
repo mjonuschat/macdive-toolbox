@@ -28,6 +28,12 @@ pub enum Error {
     Http(#[from] reqwest::Error),
     #[error("JSON serialization error: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("template rendering failed: {0}")]
+    Template(String),
+    #[error("invalid UUID in Lightroom template")]
+    InvalidUuid(#[from] uuid::Error),
+    #[error("error parsing existing Lightroom template")]
+    LightroomParsing,
 }
 
 /// Convenience alias used throughout the core crate.

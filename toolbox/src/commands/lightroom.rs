@@ -1,16 +1,14 @@
+use crate::arguments::LightroomOptions;
+use crate::errors::ConversionError;
+use crate::helpers::lightroom::MetadataPreset;
+use crate::helpers::{geocode, lightroom};
+use crate::types::{self, LocationOverride, dive_site_from_entity};
 use comfy_table::*;
 use console::{Emoji, style};
 use futures::StreamExt;
 use indicatif::ProgressBar;
 use macdive_toolbox_core::db::DatabaseManager;
 use macdive_toolbox_core::macdive::queries;
-use std::convert::TryInto;
-
-use crate::arguments::LightroomOptions;
-use crate::errors::ConversionError;
-use crate::helpers::lightroom::MetadataPreset;
-use crate::helpers::{geocode, lightroom};
-use crate::types::{self, LocationOverride, dive_site_from_entity};
 
 static LOOKING_GLASS: Emoji<'_, '_> = Emoji("🔍  ", "");
 static DIVING_MASK: Emoji<'_, '_> = Emoji("🤿️  ", "");
@@ -99,8 +97,8 @@ pub(crate) async fn export_lightroom_metadata_presets(
     }
     let presets = sites
         .into_iter()
-        .map(|site| site.try_into())
-        .collect::<anyhow::Result<Vec<MetadataPreset>, ConversionError>>()?;
+        .map(|site| MetadataPreset::try_from(site).map_err(ConversionError::from))
+        .collect::<Result<Vec<MetadataPreset>, ConversionError>>()?;
     pb.finish_and_clear();
 
     println!(

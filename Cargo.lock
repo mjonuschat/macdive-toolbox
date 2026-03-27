@@ -2921,6 +2921,7 @@ dependencies = [
 name = "macdive-toolbox-core"
 version = "0.1.0"
 dependencies = [
+ "askama",
  "celes",
  "change-case",
  "chrono",
@@ -2931,6 +2932,7 @@ dependencies = [
  "itertools 0.14.0",
  "nom 8.0.0",
  "nonzero_ext",
+ "regex",
  "reqwest",
  "rust_decimal",
  "rust_decimal_macros",
@@ -2941,6 +2943,7 @@ dependencies = [
  "thiserror 2.0.17",
  "tracing",
  "uuid",
+ "walkdir",
 ]
 
 [[package]]
